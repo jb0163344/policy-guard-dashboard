@@ -6,66 +6,63 @@ export default function Home() {
   const [status, setStatus] = useState("Loading...");
   const [score, setScore] = useState(null);
 
-  useEffect(() => {
-    let mounted = true;
+  async function load() {
+    // Use getSession (safe when logged out)
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-    async function load() {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-
-      if (!mounted) return;
-
-      if (authError) {
-        setStatus(`Auth error: ${authError.message}`);
-        return;
-      }
-
-      const user = authData?.user;
-
-      if (!user) {
-        setUserEmail(null);
-        setScore(null);
-        setStatus("Not logged in. Go to /login");
-        return;
-      }
-
-      setUserEmail(user.email);
-      setStatus("Logged in. Loading your risk score...");
-
-      const { data, error } = await supabase
-        .from("risk_scores")
-        .select("risk_score, created_at")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (!mounted) return;
-
-      if (error) {
-        setStatus(`Risk score error: ${error.message}`);
-        return;
-      }
-
-      if (!data) {
-        setScore(null);
-        setStatus("No risk score yet.");
-        return;
-      }
-
-      setScore(data.risk_score);
-      setStatus("Risk score loaded.");
+    if (sessionError) {
+      setStatus(`Session error: ${sessionError.message}`);
+      setUserEmail(null);
+      setScore(null);
+      return;
     }
 
+    const session = sessionData?.session;
+
+    if (!session?.user) {
+      setStatus("Not logged in. Go to /login");
+      setUserEmail(null);
+      setScore(null);
+      return;
+    }
+
+    const user = session.user;
+    setUserEmail(user.email);
+    setStatus("Logged in. Loading your risk score...");
+
+    const { data, error } = await supabase
+      .from("risk_scores")
+      .select("risk_score, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      setStatus(`Risk score error: ${error.message}`);
+      setScore(null);
+      return;
+    }
+
+    if (!data) {
+      setStatus("No risk score yet.");
+      setScore(null);
+      return;
+    }
+
+    setScore(data.risk_score);
+    setStatus("Risk score loaded.");
+  }
+
+  useEffect(() => {
     load();
 
     const { data: sub } = supabase.auth.onAuthStateChange(() => {
       load();
     });
 
-    return () => {
-      mounted = false;
-      sub?.subscription?.unsubscribe?.();
-    };
+    return () => sub?.subscription?.unsubscribe?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function logout() {
@@ -73,9 +70,12 @@ export default function Home() {
   }
 
   async function createTestScore() {
-    const { data: authData } = await supabase.auth.getUser();
-    const user = authData?.user;
-    if (!user) return;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData?.session?.user;
+    if (!user) {
+      setStatus("Not logged in. Go to /login");
+      return;
+    }
 
     const randomScore = Math.floor(Math.random() * 10) + 1;
 
@@ -84,7 +84,8 @@ export default function Home() {
       risk_score: randomScore,
     });
 
-    setStatus(error ? `Insert error: ${error.message}` : "Inserted. Refreshing...");
+    setStatus(error ? `Insert error: ${error.message}` : "Inserted. Reloading...");
+    if (!error) load();
   }
 
   return (
