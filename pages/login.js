@@ -10,14 +10,18 @@ export default function LoginPage() {
     e.preventDefault();
     setStatus("Signing up...");
     const { error } = await supabase.auth.signUp({ email, password });
-    setStatus(error ? `Error: ${error.message}` : "Signup OK. If email confirmation is on, check your email, then log in.");
+    setStatus(
+      error
+        ? `Error: ${error.message}`
+        : "Signup OK. If email confirmation is on, check your email, then log in."
+    );
   }
 
   async function logIn(e) {
     e.preventDefault();
     setStatus("Logging in...");
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setStatus(error ? `Error: ${error.message}` : "Login OK. Go to /");
+    setStatus(error ? `Error: ${error.message}` : "Login OK. Go back to /");
   }
 
   return (
