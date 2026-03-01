@@ -1,332 +1,99 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
-
-const QUESTIONS = [
-  {
-    key: "password_reuse",
-    title: "Password reuse",
-    prompt: "Do you reuse the same password across multiple accounts?",
-    options: [
-      { label: "Yes (often)", points: 2 },
-      { label: "Sometimes", points: 1 },
-      { label: "No (unique passwords)", points: 0 },
-    ],
-  },
-  {
-    key: "mfa",
-    title: "Multi-Factor Authentication (MFA)",
-    prompt: "Do you use MFA on your important accounts (email, bank, social)?",
-    options: [
-      { label: "No", points: 2 },
-      { label: "Only on some accounts", points: 1 },
-      { label: "Yes, on all important accounts", points: 0 },
-    ],
-  },
-  {
-    key: "breach_checks",
-    title: "Breach awareness",
-    prompt: "Have you checked if your email was in a data breach?",
-    options: [
-      { label: "Never checked", points: 2 },
-      { label: "Checked once", points: 1 },
-      { label: "I monitor regularly", points: 0 },
-    ],
-  },
-  {
-    key: "public_wifi",
-    title: "Network exposure",
-    prompt: "Do you use public Wi-Fi without a VPN?",
-    options: [
-      { label: "Often", points: 2 },
-      { label: "Rarely", points: 1 },
-      { label: "Never", points: 0 },
-    ],
-  },
-  {
-    key: "password_manager",
-    title: "Password manager",
-    prompt: "Do you use a password manager?",
-    options: [
-      { label: "No", points: 2 },
-      { label: "Not yet / considering", points: 1 },
-      { label: "Yes", points: 0 },
-    ],
-  },
-  {
-    key: "recovery",
-    title: "Recovery readiness",
-    prompt: "Do you have recovery backups set up (backup codes, secondary email/phone) on all important accounts?",
-    options: [
-      { label: "No", points: 2 },
-      { label: "Some accounts / not sure", points: 1 },
-      { label: "Yes (covered)", points: 0 },
-    ],
-  },
-];
-
-function clampScore(n) {
-  return Math.max(0, Math.min(10, n));
-}
-
-function riskBand(score) {
-  if (score <= 2) return { level: "LOW", tone: "Stable posture. Maintain good habits." };
-  if (score <= 5) return { level: "MODERATE", tone: "Some exposure. Tighten a few key controls." };
-  if (score <= 8) return { level: "HIGH", tone: "Elevated exposure. Prioritize immediate hardening." };
-  return { level: "CRITICAL", tone: "Severe exposure. Act now to prevent account takeover." };
-}
-
-function recommendations(score, answers) {
-  const items = [];
-
-  // High-impact items based on answers
-  if ((answers.password_reuse ?? 0) >= 1) {
-    items.push("Stop password reuse: switch to unique passwords for email, banking, and social accounts first.");
-  }
-  if ((answers.mfa ?? 0) >= 1) {
-    items.push("Enable MFA everywhere it matters (email first). Prefer authenticator app over SMS when possible.");
-  }
-  if ((answers.breach_checks ?? 0) >= 1) {
-    items.push("Run a breach check for your primary email(s). Rotate passwords for breached services.");
-  }
-  if ((answers.public_wifi ?? 0) >= 1) {
-    items.push("Avoid public Wi-Fi for sensitive logins or use a VPN. Turn off auto-join networks.");
-  }
-  if ((answers.password_manager ?? 0) >= 1) {
-    items.push("Adopt a password manager and generate long unique passwords. Enable passkeys where available.");
-  }
-  if ((answers.recovery ?? 0) >= 1) {
-    items.push("Add/verify recovery email + phone, store backup codes safely, and review account recovery settings.");
-  }
-
-  // Baseline items
-  if (score >= 6) {
-    items.push("Lock down your primary email account first — it’s the master key to resets.");
-    items.push("Turn on login alerts and review connected devices/sessions for major accounts.");
-  } else {
-    items.push("Keep MFA on and review your security settings quarterly.");
-  }
-
-  // Ensure some output
-  return items.slice(0, 7);
-}
 
 export default function Home() {
   const [status, setStatus] = useState("Loading...");
-  const [userEmail, setUserEmail] = useState(null);
-  const [userId, setUserId] = useState(null);
-
-  // latest saved score
+  const [user, setUser] = useState(null);
   const [latestScore, setLatestScore] = useState(null);
 
-  // wizard state
-  const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState({}); // { [question.key]: points }
-  const [saving, setSaving] = useState(false);
+  async function loadData() {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUser = sessionData?.session?.user;
 
-  const computedScore = useMemo(() => {
-    const sum = Object.values(answers).reduce((acc, v) => acc + (typeof v === "number" ? v : 0), 0);
-    return clampScore(sum);
-  }, [answers]);
-
-  const band = useMemo(() => riskBand(computedScore), [computedScore]);
-  const recs = useMemo(() => recommendations(computedScore, answers), [computedScore, answers]);
-
-  async function loadAuthAndLatest() {
-  try {
-    setStatus("Loading session...");
-
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-
-    if (sessionError) {
-      setStatus(`Session error: ${sessionError.message}`);
-      setUserEmail(null);
-      setUserId(null);
-      setLatestScore(null);
-      return;
-    }
-
-    const session = sessionData?.session;
-
-    if (!session?.user) {
+    if (!currentUser) {
       setStatus("Not logged in. Go to /login");
-      setUserEmail(null);
-      setUserId(null);
-      setLatestScore(null);
       return;
     }
 
-    const user = session.user;
-    setUserEmail(user.email);
-    setUserId(user.id);
-    setStatus("Session OK. Loading latest score...");
+    setUser(currentUser);
 
     const { data, error } = await supabase
       .from("risk_scores")
       .select("risk_score, created_at")
-      .eq("user_id", user.id)
+      .eq("user_id", currentUser.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (error) {
-      setStatus(`Risk score read error: ${error.message}`);
-      setLatestScore(null);
+      setStatus("Error loading score.");
       return;
     }
 
     setLatestScore(data?.risk_score ?? null);
-    setStatus("Ready. Run a scan to generate your risk score.");
-  } catch (e) {
-    setStatus(`Unexpected error: ${e?.message || String(e)}`);
-    setUserEmail(null);
-    setUserId(null);
-    setLatestScore(null);
-  }
-}
-    useEffect(() => {
-    loadAuthAndLatest();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => loadAuthAndLatest());
-    return () => sub?.subscription?.unsubscribe?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function logout() {
-    await supabase.auth.signOut();
+    setStatus("Ready.");
   }
 
-  function resetWizard() {
-    setAnswers({});
-    setStep(0);
-    setSaving(false);
-  }
+  async function createTestScore() {
+    if (!user) return;
 
-  function selectOption(points) {
-    const q = QUESTIONS[step];
-    setAnswers((prev) => ({ ...prev, [q.key]: points }));
-  }
-
-  const currentQuestion = QUESTIONS[step];
-  const isLast = step === QUESTIONS.length - 1;
-  const currentAnswer = answers[currentQuestion?.key];
-
-  async function saveScore() {
-    if (!userId) return;
-
-    setSaving(true);
-    setStatus("Saving your score...");
+    const randomScore = Math.floor(Math.random() * 10) + 1;
 
     const { error } = await supabase.from("risk_scores").insert({
-      user_id: userId,
-      risk_score: computedScore,
+      user_id: user.id,
+      risk_score: randomScore,
     });
 
     if (error) {
-      setSaving(false);
-      setStatus(`Insert error: ${error.message}`);
+      setStatus("Insert error: " + error.message);
       return;
     }
 
-    setSaving(false);
-    setLatestScore(computedScore);
-    setStatus("Saved. Your latest risk score is updated.");
+    setLatestScore(randomScore);
   }
 
-  async function finish() {
-    if (Object.keys(answers).length < QUESTIONS.length) {
-      setStatus("Answer all questions to finish the scan.");
-      return;
-    }
-    await saveScore();
+  async function logout() {
+    await supabase.auth.signOut();
+    window.location.reload();
   }
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   return (
-    <main style={{ padding: 40, fontFamily: "system-ui", maxWidth: 860 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "baseline" }}>
-        <h1 style={{ margin: 0 }}>Policy Guard Dashboard</h1>
-        {userEmail ? (
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <span style={{ opacity: 0.85 }}>
-              Signed in as <b>{userEmail}</b>
-            </span>
-            <button onClick={logout} style={{ padding: "8px 12px" }}>
-              Log out
-            </button>
-          </div>
-        ) : null}
-      </div>
+    <main style={{ padding: 40, fontFamily: "system-ui" }}>
+      <h1>Policy Guard Dashboard</h1>
 
-      <p style={{ marginTop: 12 }}>{status}</p>
+      <p>{status}</p>
 
-      {!userEmail ? (
+      {!user ? (
         <p>
-          Go to <a href="/login">/login</a> to sign up or log in.
+          Go to <a href="/login">/login</a>
         </p>
       ) : (
         <>
-          <section
-            style={{
-              marginTop: 18,
-              padding: 18,
-              borderRadius: 14,
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(20, 24, 40, 0.55)",
-              backdropFilter: "blur(8px)",
-            }}
+          <p>
+            Signed in as <b>{user.email}</b>
+          </p>
+
+          <h2>
+            Latest Risk Score:{" "}
+            {latestScore === null ? "—" : latestScore}
+          </h2>
+
+          <button onClick={createTestScore}>
+            Create Test Score
+          </button>
+
+          <button
+            onClick={logout}
+            style={{ marginLeft: 10 }}
           >
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "baseline" }}>
-              <div>
-                <div style={{ opacity: 0.85 }}>Latest saved score</div>
-                <div style={{ fontSize: 34, fontWeight: 700 }}>
-                  {latestScore === null ? "—" : latestScore}
-                  <span style={{ fontSize: 16, fontWeight: 500, opacity: 0.8 }}> / 10</span>
-                </div>
-              </div>
-
-              <div style={{ marginLeft: "auto" }}>
-                <button onClick={resetWizard} style={{ padding: "10px 14px" }}>
-                  New Scan
-                </button>
-              </div>
-            </div>
-
-            <hr style={{ margin: "16px 0", opacity: 0.25 }} />
-
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-                <div style={{ opacity: 0.85 }}>
-                  Scan Step <b>{step + 1}</b> / {QUESTIONS.length}
-                </div>
-                <div style={{ opacity: 0.85 }}>
-                  Live score: <b>{computedScore}</b> / 10 • Risk: <b>{band.level}</b>
-                </div>
-              </div>
-
-              <div style={{ marginTop: 14 }}>
-                <div style={{ fontSize: 14, opacity: 0.8, textTransform: "uppercase", letterSpacing: 1 }}>
-                  {currentQuestion.title}
-                </div>
-                <div style={{ fontSize: 20, fontWeight: 650, marginTop: 6 }}>{currentQuestion.prompt}</div>
-
-                <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
-                  {currentQuestion.options.map((opt) => {
-                    const selected = currentAnswer === opt.points;
-                    return (
-                      <button
-                        key={opt.label}
-                        onClick={() => selectOption(opt.points)}
-                        style={{
-                          textAlign: "left",
-                          padding: "12px 14px",
-                          borderRadius: 12,
-                          border: selected ? "1px solid rgba(120,200,255,0.9)" : "1px solid rgba(255,255,255,0.14)",
-                          background: selected ? "rgba(120,200,255,0.14)" : "rgba(255,255,255,0.04)",
-                          cursor: "pointer",
-                        }}
-                      >
-                        {opt.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div style={{ display: "flex", gap: 
+            Log out
+          </button>
+        </>
+      )}
+    </main>
+  );
+}
