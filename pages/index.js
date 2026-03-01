@@ -132,6 +132,9 @@ export default function Home() {
   const recs = useMemo(() => recommendations(computedScore, answers), [computedScore, answers]);
 
   async function loadAuthAndLatest() {
+  try {
+    setStatus("Loading session...");
+
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
     if (sessionError) {
@@ -142,8 +145,9 @@ export default function Home() {
       return;
     }
 
-    const user = sessionData?.session?.user;
-    if (!user) {
+    const session = sessionData?.session;
+
+    if (!session?.user) {
       setStatus("Not logged in. Go to /login");
       setUserEmail(null);
       setUserId(null);
@@ -151,11 +155,11 @@ export default function Home() {
       return;
     }
 
+    const user = session.user;
     setUserEmail(user.email);
     setUserId(user.id);
-    setStatus("Ready. Run a scan to generate your risk score.");
+    setStatus("Session OK. Loading latest score...");
 
-    // Load latest saved score
     const { data, error } = await supabase
       .from("risk_scores")
       .select("risk_score, created_at")
@@ -171,211 +175,11 @@ export default function Home() {
     }
 
     setLatestScore(data?.risk_score ?? null);
+    setStatus("Ready. Run a scan to generate your risk score.");
+  } catch (e) {
+    setStatus(`Unexpected error: ${e?.message || String(e)}`);
+    setUserEmail(null);
+    setUserId(null);
+    setLatestScore(null);
   }
-
-  useEffect(() => {
-    loadAuthAndLatest();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => loadAuthAndLatest());
-    return () => sub?.subscription?.unsubscribe?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function logout() {
-    await supabase.auth.signOut();
-  }
-
-  function resetWizard() {
-    setAnswers({});
-    setStep(0);
-    setSaving(false);
-  }
-
-  function selectOption(points) {
-    const q = QUESTIONS[step];
-    setAnswers((prev) => ({ ...prev, [q.key]: points }));
-  }
-
-  const currentQuestion = QUESTIONS[step];
-  const isLast = step === QUESTIONS.length - 1;
-  const currentAnswer = answers[currentQuestion?.key];
-
-  async function saveScore() {
-    if (!userId) return;
-
-    setSaving(true);
-    setStatus("Saving your score...");
-
-    const { error } = await supabase.from("risk_scores").insert({
-      user_id: userId,
-      risk_score: computedScore,
-    });
-
-    if (error) {
-      setSaving(false);
-      setStatus(`Insert error: ${error.message}`);
-      return;
-    }
-
-    setSaving(false);
-    setLatestScore(computedScore);
-    setStatus("Saved. Your latest risk score is updated.");
-  }
-
-  async function finish() {
-    // Must have answered all questions
-    if (Object.keys(answers).length < QUESTIONS.length) {
-      setStatus("Answer all questions to finish the scan.");
-      return;
-    }
-    await saveScore();
-  }
-
-  return (
-    <main style={{ padding: 40, fontFamily: "system-ui", maxWidth: 860 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "baseline" }}>
-        <h1 style={{ margin: 0 }}>Policy Guard Dashboard</h1>
-        {userEmail ? (
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <span style={{ opacity: 0.85 }}>Signed in as <b>{userEmail}</b></span>
-            <button onClick={logout} style={{ padding: "8px 12px" }}>Log out</button>
-          </div>
-        ) : null}
-      </div>
-
-      <p style={{ marginTop: 12 }}>{status}</p>
-
-      {!userEmail ? (
-        <p>
-          Go to <a href="/login">/login</a> to sign up or log in.
-        </p>
-      ) : (
-        <>
-          <section
-            style={{
-              marginTop: 18,
-              padding: 18,
-              borderRadius: 14,
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(20, 24, 40, 0.55)",
-              backdropFilter: "blur(8px)",
-            }}
-          >
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "baseline" }}>
-              <div>
-                <div style={{ opacity: 0.85 }}>Latest saved score</div>
-                <div style={{ fontSize: 34, fontWeight: 700 }}>
-                  {latestScore === null ? "—" : latestScore}
-                  <span style={{ fontSize: 16, fontWeight: 500, opacity: 0.8 }}> / 10</span>
-                </div>
-              </div>
-
-              <div style={{ marginLeft: "auto" }}>
-                <button onClick={resetWizard} style={{ padding: "10px 14px" }}>
-                  New Scan
-                </button>
-              </div>
-            </div>
-
-            <hr style={{ margin: "16px 0", opacity: 0.25 }} />
-
-            {/* Wizard */}
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-                <div style={{ opacity: 0.85 }}>
-                  Scan Step <b>{step + 1}</b> / {QUESTIONS.length}
-                </div>
-                <div style={{ opacity: 0.85 }}>
-                  Live score: <b>{computedScore}</b> / 10 • Risk: <b>{band.level}</b>
-                </div>
-              </div>
-
-              <div style={{ marginTop: 14 }}>
-                <div style={{ fontSize: 14, opacity: 0.8, textTransform: "uppercase", letterSpacing: 1 }}>
-                  {currentQuestion.title}
-                </div>
-                <div style={{ fontSize: 20, fontWeight: 650, marginTop: 6 }}>
-                  {currentQuestion.prompt}
-                </div>
-
-                <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
-                  {currentQuestion.options.map((opt) => {
-                    const selected = currentAnswer === opt.points;
-                    return (
-                      <button
-                        key={opt.label}
-                        onClick={() => selectOption(opt.points)}
-                        style={{
-                          textAlign: "left",
-                          padding: "12px 14px",
-                          borderRadius: 12,
-                          border: selected ? "1px solid rgba(120,200,255,0.9)" : "1px solid rgba(255,255,255,0.14)",
-                          background: selected ? "rgba(120,200,255,0.14)" : "rgba(255,255,255,0.04)",
-                          cursor: "pointer",
-                        }}
-                      >
-                        {opt.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                  <button
-                    onClick={() => setStep((s) => Math.max(0, s - 1))}
-                    disabled={step === 0}
-                    style={{ padding: "10px 14px", opacity: step === 0 ? 0.5 : 1 }}
-                  >
-                    Back
-                  </button>
-
-                  {!isLast ? (
-                    <button
-                      onClick={() => setStep((s) => Math.min(QUESTIONS.length - 1, s + 1))}
-                      disabled={typeof currentAnswer !== "number"}
-                      style={{ padding: "10px 14px", opacity: typeof currentAnswer !== "number" ? 0.5 : 1 }}
-                    >
-                      Next
-                    </button>
-                  ) : (
-                    <button
-                      onClick={finish}
-                      disabled={saving || Object.keys(answers).length < QUESTIONS.length}
-                      style={{
-                        padding: "10px 14px",
-                        opacity: saving || Object.keys(answers).length < QUESTIONS.length ? 0.5 : 1,
-                      }}
-                    >
-                      {saving ? "Saving..." : "Finish & Save Score"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Results / Recommendations */}
-          <section style={{ marginTop: 18, padding: 18, borderRadius: 14, border: "1px solid rgba(255,255,255,0.12)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-              <div>
-                <div style={{ opacity: 0.85 }}>Policy Guard AI Assessment</div>
-                <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
-                  {band.level} RISK • {computedScore}/10
-                </div>
-                <div style={{ marginTop: 8, opacity: 0.9 }}>{band.tone}</div>
-              </div>
-            </div>
-
-            <div style={{ marginTop: 14 }}>
-              <div style={{ fontWeight: 650, marginBottom: 8 }}>Recommended Actions</div>
-              <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 8 }}>
-                {recs.map((r, idx) => (
-                  <li key={idx}>{r}</li>
-                ))}
-              </ul>
-            </div>
-          </section>
-        </>
-      )}
-    </main>
-  );
 }
