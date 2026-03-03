@@ -17,13 +17,18 @@ export default function LoginPage() {
     );
   }
 
-  async function logIn(e) {
-    e.preventDefault();
-    setStatus("Logging in...");
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setStatus(error ? `Error: ${error.message}` : "Login OK. Go back to /");
-  }
+async function login() {
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
+  if (error) {
+    setMessage(error.message);
+  } else {
+    setMessage("Login OK. Go back to /");
+  }
+}
   return (
     <main style={{ padding: 40, fontFamily: "system-ui", maxWidth: 520 }}>
       <h1>Policy Guard — Login</h1>
