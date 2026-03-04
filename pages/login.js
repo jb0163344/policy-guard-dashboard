@@ -13,22 +13,25 @@ export default function LoginPage() {
     setStatus(
       error
         ? `Error: ${error.message}`
-        : "Signup OK. If email confirmation is on, check your email, then log in."
+        : "Signup OK. Now log in."
     );
   }
 
-async function login() {
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  async function logIn(e) {
+    e.preventDefault();
+    setStatus("Logging in...");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-  if (error) {
-    setMessage(error.message);
-  } else {
+    if (error) {
+      setStatus(`Error: ${error.message}`);
+      return;
+    }
+
+    // Auto-redirect on success
     window.location.href = "/";
   }
-}  return (
+
+  return (
     <main style={{ padding: 40, fontFamily: "system-ui", maxWidth: 520 }}>
       <h1>Policy Guard — Login</h1>
 
