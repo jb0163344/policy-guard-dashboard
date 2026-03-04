@@ -26,10 +26,9 @@ async function login() {
   if (error) {
     setMessage(error.message);
   } else {
-    setMessage("Login OK. Go back to /");
+    window.location.href = "/";
   }
-}
-  return (
+}  return (
     <main style={{ padding: 40, fontFamily: "system-ui", maxWidth: 520 }}>
       <h1>Policy Guard — Login</h1>
 
