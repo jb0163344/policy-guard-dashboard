@@ -69,56 +69,62 @@ function clampScore(n) {
   return Math.max(0, Math.min(10, n));
 }
 
-function band(score) {
+function riskBand(score) {
   if (score <= 2) return { level: "LOW", tone: "Stable posture. Maintain good habits." };
   if (score <= 5) return { level: "MODERATE", tone: "Some exposure. Tighten a few key controls." };
   if (score <= 8) return { level: "HIGH", tone: "Elevated exposure. Prioritize immediate hardening." };
   return { level: "CRITICAL", tone: "Severe exposure. Act now to prevent account takeover." };
 }
 
-function recs(score, answers) {
+function recommendations(score, answers) {
   const items = [];
-
-  if ((answers.password_reuse ?? 0) >= 1)
-    items.push("Stop password reuse. Start with email + banking + social accounts.");
-  if ((answers.mfa ?? 0) >= 1)
-    items.push("Enable MFA everywhere. Prefer an authenticator app over SMS.");
-  if ((answers.breach_checks ?? 0) >= 1)
-    items.push("Run a breach check and rotate passwords for breached services.");
-  if ((answers.public_wifi ?? 0) >= 1)
-    items.push("Avoid public Wi-Fi for sensitive logins or use a VPN.");
-  if ((answers.password_manager ?? 0) >= 1)
-    items.push("Adopt a password manager. Generate long unique passwords.");
-  if ((answers.recovery ?? 0) >= 1)
-    items.push("Verify recovery email/phone + store backup codes safely.");
+  if ((answers.password_reuse ?? 0) >= 1) items.push("Stop password reuse. Start with email + banking + social.");
+  if ((answers.mfa ?? 0) >= 1) items.push("Enable MFA everywhere. Prefer authenticator app over SMS.");
+  if ((answers.breach_checks ?? 0) >= 1) items.push("Run a breach check + rotate passwords for breached services.");
+  if ((answers.public_wifi ?? 0) >= 1) items.push("Avoid public Wi-Fi for sensitive logins or use a VPN.");
+  if ((answers.password_manager ?? 0) >= 1) items.push("Adopt a password manager; generate long unique passwords.");
+  if ((answers.recovery ?? 0) >= 1) items.push("Verify recovery email/phone + store backup codes safely.");
 
   if (score >= 6) {
-    items.push("Secure your primary email first — it’s the master key to account resets.");
-    items.push("Review logged-in devices/sessions and enable login alerts.");
+    items.push("Secure your primary email first — it’s the master key to resets.");
+    items.push("Review sessions/devices and enable login alerts.");
   } else {
-    items.push("Review your security settings monthly and keep MFA enabled.");
+    items.push("Review security settings monthly and keep MFA enabled.");
   }
-
   return items.slice(0, 7);
+}
+
+function fmt(ts) {
+  try {
+    return new Date(ts).toLocaleString();
+  } catch {
+    return String(ts);
+  }
 }
 
 export default function Home() {
   const [status, setStatus] = useState("Loading...");
   const [userEmail, setUserEmail] = useState(null);
   const [userId, setUserId] = useState(null);
+
   const [latestScore, setLatestScore] = useState(null);
+  const [history, setHistory] = useState([]);
 
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const [saving, setSaving] = useState(false);
 
-  const computed = useMemo(() => {
+  const computedScore = useMemo(() => {
     const sum = Object.values(answers).reduce((acc, v) => acc + (typeof v === "number" ? v : 0), 0);
     return clampScore(sum);
   }, [answers]);
 
-  const risk = useMemo(() => band(computed), [computed]);
-  const actions = useMemo(() => recs(computed, answers), [computed, answers]);
+  const band = useMemo(() => riskBand(computedScore), [computedScore]);
+  const recs = useMemo(() => recommendations(computedScore, answers), [computedScore, answers]);
+
+  const q = QUESTIONS[step];
+  const isLast = step === QUESTIONS.length - 1;
+  const answered = typeof answers[q.key] === "number";
 
   async function load() {
     setStatus("Loading session...");
@@ -129,6 +135,7 @@ export default function Home() {
       setUserEmail(null);
       setUserId(null);
       setLatestScore(null);
+      setHistory([]);
       return;
     }
 
@@ -138,28 +145,30 @@ export default function Home() {
       setUserEmail(null);
       setUserId(null);
       setLatestScore(null);
+      setHistory([]);
       return;
     }
 
     setUserEmail(user.email);
     setUserId(user.id);
-    setStatus("Ready.");
 
     const { data, error: readErr } = await supabase
       .from("risk_scores")
-      .select("risk_score, created_at")
+      .select("risk_score, created_at, answers")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(5);
 
     if (readErr) {
-      setStatus(`Risk score read error: ${readErr.message}`);
+      setStatus(`Read error: ${readErr.message}`);
       setLatestScore(null);
+      setHistory([]);
       return;
     }
 
-    setLatestScore(data?.risk_score ?? null);
+    setHistory(data || []);
+    setLatestScore((data && data[0] && data[0].risk_score) ?? null);
+    setStatus("Ready.");
   }
 
   useEffect(() => {
@@ -169,11 +178,6 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function logout() {
-    await supabase.auth.signOut();
-    window.location.href = "/login";
-  }
-
   function resetScan() {
     setAnswers({});
     setStep(0);
@@ -181,56 +185,59 @@ export default function Home() {
     setStatus("Ready.");
   }
 
-  function pick(points) {
-    const q = QUESTIONS[step];
+  function select(points) {
     setAnswers((prev) => ({ ...prev, [q.key]: points }));
   }
 
-  const q = QUESTIONS[step];
-  const isLast = step === QUESTIONS.length - 1;
-  const answered = typeof answers[q.key] === "number";
-
-  async function saveScore() {
+  async function finishAndSave() {
     if (!userId) return;
-    setSaving(true);
-    setStatus("Saving score...");
-
-    const { error } = await supabase.from("risk_scores").insert({
-      user_id: userId,
-      risk_score: computed,
-    });
-
-    if (error) {
-      setSaving(false);
-      setStatus(`Insert error: ${error.message}`);
-      return;
-    }
-
-    setLatestScore(computed);
-    setSaving(false);
-    setStatus("Saved. Latest score updated.");
-  }
-
-  async function finish() {
     if (Object.keys(answers).length < QUESTIONS.length) {
       setStatus("Answer all questions to finish.");
       return;
     }
-    await saveScore();
+
+    setSaving(true);
+    setStatus("Saving scan...");
+
+    const insertPromise = supabase.from("risk_scores").insert({
+      user_id: userId,
+      risk_score: computedScore,
+      answers: answers,
+    });
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Save timed out. Check RLS/policies or network.")), 12000)
+    );
+
+    try {
+      const result = await Promise.race([insertPromise, timeoutPromise]);
+      const { error } = result || {};
+      if (error) throw error;
+
+      setSaving(false);
+      setStatus("Saved. Latest score updated.");
+      await load();
+    } catch (err) {
+      setSaving(false);
+      setStatus(`Insert error: ${err.message || String(err)}`);
+    }
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+    window.location.href = "/login";
   }
 
   return (
-    <main style={{ padding: 40, fontFamily: "system-ui", maxWidth: 900, margin: "0 auto" }}>
+    <main style={{ padding: 40, fontFamily: "system-ui", maxWidth: 980, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
         <h1 style={{ margin: 0 }}>Policy Guard</h1>
-        {userEmail && (
+        {userEmail ? (
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <span style={{ opacity: 0.85 }}>
-              {userEmail}
-            </span>
+            <span style={{ opacity: 0.85 }}>{userEmail}</span>
             <button onClick={logout} style={{ padding: "8px 12px" }}>Logout</button>
           </div>
-        )}
+        ) : null}
       </div>
 
       <p style={{ marginTop: 12 }}>{status}</p>
@@ -241,18 +248,45 @@ export default function Home() {
         </p>
       ) : (
         <>
-          <section style={{ marginTop: 16, padding: 16, border: "1px solid #ddd", borderRadius: 12 }}>
+          <section style={{ marginTop: 16, padding: 16, borderRadius: 14, border: "1px solid #ddd" }}>
             <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
               <div>
                 <div style={{ fontSize: 14, opacity: 0.8 }}>Latest saved score</div>
-                <div style={{ fontSize: 34, fontWeight: 800 }}>
-                  {latestScore === null ? "—" : latestScore} <span style={{ fontSize: 16, opacity: 0.75 }}>/ 10</span>
+                <div style={{ fontSize: 36, fontWeight: 900 }}>
+                  {latestScore === null ? "—" : latestScore}{" "}
+                  <span style={{ fontSize: 16, opacity: 0.75 }}>/ 10</span>
                 </div>
               </div>
-              <div>
-                <button onClick={resetScan} style={{ padding: "10px 14px" }}>New Scan</button>
-              </div>
+              <button onClick={resetScan} style={{ padding: "10px 14px" }}>
+                New Scan
+              </button>
             </div>
+
+            <hr style={{ margin: "16px 0" }} />
+
+            <div style={{ fontWeight: 900, marginBottom: 8 }}>Last 5 Scans</div>
+            {history.length === 0 ? (
+              <div style={{ opacity: 0.8 }}>No history yet.</div>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                {history.map((h, idx) => (
+                  <div key={idx} style={{ padding: 10, border: "1px solid #eee", borderRadius: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+                      <div><b>Score:</b> {h.risk_score}/10</div>
+                      <div style={{ opacity: 0.7 }}>{h.created_at ? fmt(h.created_at) : "—"}</div>
+                    </div>
+                    {h.answers ? (
+                      <details style={{ marginTop: 8 }}>
+                        <summary style={{ cursor: "pointer" }}>View answers</summary>
+                        <pre style={{ whiteSpace: "pre-wrap", marginTop: 8 }}>
+                          {JSON.stringify(h.answers, null, 2)}
+                        </pre>
+                      </details>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
 
             <hr style={{ margin: "16px 0" }} />
 
@@ -261,15 +295,13 @@ export default function Home() {
                 Step <b>{step + 1}</b> / {QUESTIONS.length}
               </div>
               <div style={{ fontSize: 14, opacity: 0.8 }}>
-                Live score: <b>{computed}</b>/10 • Risk: <b>{risk.level}</b>
+                Live score: <b>{computedScore}</b>/10 • Risk: <b>{band.level}</b>
               </div>
             </div>
 
             <div style={{ marginTop: 10 }}>
-              <div style={{ fontSize: 13, opacity: 0.75, textTransform: "uppercase", letterSpacing: 1 }}>
-                {q.title}
-              </div>
-              <div style={{ fontSize: 20, fontWeight: 700, marginTop: 6 }}>{q.prompt}</div>
+              <div style={{ fontSize: 13, opacity: 0.75, textTransform: "uppercase", letterSpacing: 1 }}>{q.title}</div>
+              <div style={{ fontSize: 20, fontWeight: 900, marginTop: 6 }}>{q.prompt}</div>
 
               <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
                 {q.options.map((o) => {
@@ -277,11 +309,11 @@ export default function Home() {
                   return (
                     <button
                       key={o.label}
-                      onClick={() => pick(o.points)}
+                      onClick={() => select(o.points)}
                       style={{
                         textAlign: "left",
                         padding: "12px 14px",
-                        borderRadius: 10,
+                        borderRadius: 12,
                         border: selected ? "2px solid #222" : "1px solid #ccc",
                         background: selected ? "#f2f2f2" : "#fff",
                       }}
@@ -311,9 +343,9 @@ export default function Home() {
                   </button>
                 ) : (
                   <button
-                    onClick={finish}
+                    onClick={finishAndSave}
                     disabled={saving || Object.keys(answers).length < QUESTIONS.length}
-                    style={{ padding: "10px 14px", opacity: saving || Object.keys(answers).length < QUESTIONS.length ? 0.5 : 1 }}
+                    style={{ padding: "10px 14px", opacity: saving ? 0.5 : 1 }}
                   >
                     {saving ? "Saving..." : "Finish & Save Score"}
                   </button>
@@ -322,17 +354,17 @@ export default function Home() {
             </div>
           </section>
 
-          <section style={{ marginTop: 16, padding: 16, border: "1px solid #ddd", borderRadius: 12 }}>
+          <section style={{ marginTop: 16, padding: 16, borderRadius: 14, border: "1px solid #ddd" }}>
             <div style={{ fontSize: 14, opacity: 0.8 }}>AI Assessment</div>
-            <div style={{ fontSize: 22, fontWeight: 800, marginTop: 6 }}>
-              {risk.level} RISK • {computed}/10
+            <div style={{ fontSize: 22, fontWeight: 900, marginTop: 6 }}>
+              {band.level} RISK • {computedScore}/10
             </div>
-            <div style={{ marginTop: 10 }}>{risk.tone}</div>
+            <div style={{ marginTop: 10 }}>{band.tone}</div>
 
             <div style={{ marginTop: 14 }}>
-              <div style={{ fontWeight: 800, marginBottom: 8 }}>Recommended Actions</div>
+              <div style={{ fontWeight: 900, marginBottom: 8 }}>Recommended Actions</div>
               <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 8 }}>
-                {actions.map((a, i) => <li key={i}>{a}</li>)}
+                {recs.map((a, i) => <li key={i}>{a}</li>)}
               </ul>
             </div>
           </section>
