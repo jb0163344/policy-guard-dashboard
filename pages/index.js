@@ -2,80 +2,35 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 
 const QUESTIONS = [
-  {
-    key: "password_reuse",
-    title: "Password reuse",
-    prompt: "Do you reuse the same password across multiple accounts?",
-    options: [
-      { label: "Yes (often)", points: 2 },
-      { label: "Sometimes", points: 1 },
-      { label: "No (unique passwords)", points: 0 },
-    ],
-  },
-  {
-    key: "mfa",
-    title: "Multi-Factor Authentication (MFA)",
-    prompt: "Do you use MFA on your important accounts (email, bank, social)?",
-    options: [
-      { label: "No", points: 2 },
-      { label: "Only on some accounts", points: 1 },
-      { label: "Yes, on all important accounts", points: 0 },
-    ],
-  },
-  {
-    key: "breach_checks",
-    title: "Breach awareness",
-    prompt: "Have you checked if your email was in a data breach?",
-    options: [
-      { label: "Never checked", points: 2 },
-      { label: "Checked once", points: 1 },
-      { label: "I monitor regularly", points: 0 },
-    ],
-  },
-  {
-    key: "public_wifi",
-    title: "Network exposure",
-    prompt: "Do you use public Wi-Fi without a VPN?",
-    options: [
-      { label: "Often", points: 2 },
-      { label: "Rarely", points: 1 },
-      { label: "Never", points: 0 },
-    ],
-  },
-  {
-    key: "password_manager",
-    title: "Password manager",
-    prompt: "Do you use a password manager?",
-    options: [
-      { label: "No", points: 2 },
-      { label: "Not yet / considering", points: 1 },
-      { label: "Yes", points: 0 },
-    ],
-  },
-  {
-    key: "recovery",
-    title: "Recovery readiness",
-    prompt:
-      "Do you have recovery backups set up (backup codes, secondary email/phone) on all important accounts?",
-    options: [
-      { label: "No", points: 2 },
-      { label: "Some accounts / not sure", points: 1 },
-      { label: "Yes (covered)", points: 0 },
-    ],
-  },
+  { key: "password_reuse", title: "Password reuse", prompt: "Do you reuse the same password across multiple accounts?", options: [
+    { label: "Yes (often)", points: 2 }, { label: "Sometimes", points: 1 }, { label: "No (unique passwords)", points: 0 },
+  ]},
+  { key: "mfa", title: "MFA", prompt: "Do you use MFA on your important accounts (email, bank, social)?", options: [
+    { label: "No", points: 2 }, { label: "Only on some accounts", points: 1 }, { label: "Yes, on all important accounts", points: 0 },
+  ]},
+  { key: "breach_checks", title: "Breach awareness", prompt: "Have you checked if your email was in a data breach?", options: [
+    { label: "Never checked", points: 2 }, { label: "Checked once", points: 1 }, { label: "I monitor regularly", points: 0 },
+  ]},
+  { key: "public_wifi", title: "Network exposure", prompt: "Do you use public Wi-Fi without a VPN?", options: [
+    { label: "Often", points: 2 }, { label: "Rarely", points: 1 }, { label: "Never", points: 0 },
+  ]},
+  { key: "password_manager", title: "Password manager", prompt: "Do you use a password manager?", options: [
+    { label: "No", points: 2 }, { label: "Not yet / considering", points: 1 }, { label: "Yes", points: 0 },
+  ]},
+  { key: "recovery", title: "Recovery readiness", prompt: "Do you have recovery backups set up (backup codes, secondary email/phone) on all important accounts?", options: [
+    { label: "No", points: 2 }, { label: "Some accounts / not sure", points: 1 }, { label: "Yes (covered)", points: 0 },
+  ]},
 ];
 
 function clampScore(n) {
   return Math.max(0, Math.min(10, n));
 }
-
 function riskBand(score) {
   if (score <= 2) return { level: "LOW", tone: "Stable posture. Maintain good habits." };
   if (score <= 5) return { level: "MODERATE", tone: "Some exposure. Tighten a few key controls." };
   if (score <= 8) return { level: "HIGH", tone: "Elevated exposure. Prioritize immediate hardening." };
   return { level: "CRITICAL", tone: "Severe exposure. Act now to prevent account takeover." };
 }
-
 function recommendations(score, answers) {
   const items = [];
   if ((answers.password_reuse ?? 0) >= 1) items.push("Stop password reuse. Start with email + banking + social.");
@@ -84,26 +39,13 @@ function recommendations(score, answers) {
   if ((answers.public_wifi ?? 0) >= 1) items.push("Avoid public Wi-Fi for sensitive logins or use a VPN.");
   if ((answers.password_manager ?? 0) >= 1) items.push("Adopt a password manager; generate long unique passwords.");
   if ((answers.recovery ?? 0) >= 1) items.push("Verify recovery email/phone + store backup codes safely.");
-
-  if (score >= 6) {
-    items.push("Secure your primary email first — it’s the master key to resets.");
-    items.push("Review sessions/devices and enable login alerts.");
-  } else {
-    items.push("Review security settings monthly and keep MFA enabled.");
-  }
+  if (score >= 6) items.push("Secure your primary email first — it’s the master key to resets.");
   return items.slice(0, 7);
 }
 
-function fmt(ts) {
-  try {
-    return new Date(ts).toLocaleString();
-  } catch {
-    return String(ts);
-  }
-}
-
 export default function Home() {
-  const [status, setStatus] = useState("Loading...");
+  const [status, setStatus] = useState("Loading…");
+  const [errorText, setErrorText] = useState("");
   const [userEmail, setUserEmail] = useState(null);
   const [userId, setUserId] = useState(null);
 
@@ -127,8 +69,9 @@ export default function Home() {
   const answered = typeof answers[q.key] === "number";
 
   async function load() {
-    setStatus("Loading session...");
-    const { data: sessionData, error } = await supabase.auth.getSession();
+    setErrorText("");
+    setStatus("Loading session…");
+    const { data, error } = await supabase.auth.getSession();
 
     if (error) {
       setStatus(`Session error: ${error.message}`);
@@ -139,7 +82,7 @@ export default function Home() {
       return;
     }
 
-    const user = sessionData?.session?.user;
+    const user = data?.session?.user;
     if (!user) {
       setStatus("Not logged in. Go to /login");
       setUserEmail(null);
@@ -151,8 +94,9 @@ export default function Home() {
 
     setUserEmail(user.email);
     setUserId(user.id);
+    setStatus("Ready.");
 
-    const { data, error: readErr } = await supabase
+    const { data: rows, error: readErr } = await supabase
       .from("risk_scores")
       .select("risk_score, created_at, answers")
       .eq("user_id", user.id)
@@ -160,15 +104,15 @@ export default function Home() {
       .limit(5);
 
     if (readErr) {
-      setStatus(`Read error: ${readErr.message}`);
+      setStatus("Ready, but history load failed.");
+      setErrorText(`History error: ${readErr.message}`);
       setLatestScore(null);
       setHistory([]);
       return;
     }
 
-    setHistory(data || []);
-    setLatestScore((data && data[0] && data[0].risk_score) ?? null);
-    setStatus("Ready.");
+    setHistory(rows || []);
+    setLatestScore((rows && rows[0] && rows[0].risk_score) ?? null);
   }
 
   useEffect(() => {
@@ -182,6 +126,7 @@ export default function Home() {
     setAnswers({});
     setStep(0);
     setSaving(false);
+    setErrorText("");
     setStatus("Ready.");
   }
 
@@ -190,36 +135,53 @@ export default function Home() {
   }
 
   async function finishAndSave() {
-    if (!userId) return;
+    setErrorText("");
+    if (!userId) {
+      setErrorText("No user session found. Go to /login and log in again.");
+      return;
+    }
     if (Object.keys(answers).length < QUESTIONS.length) {
-      setStatus("Answer all questions to finish.");
+      setErrorText("Answer all questions before finishing.");
       return;
     }
 
     setSaving(true);
-    setStatus("Saving scan...");
+    setStatus("Saving scan…");
 
-    const insertPromise = supabase.from("risk_scores").insert({
-      user_id: userId,
-      risk_score: computedScore,
-      answers: answers,
-    });
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Save timed out. Check RLS/policies or network.")), 12000)
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Save timed out (12s). Likely RLS/policy or network.")), 12000)
     );
 
     try {
-      const result = await Promise.race([insertPromise, timeoutPromise]);
-      const { error } = result || {};
-      if (error) throw error;
+      // Try with answers first
+      const attempt1 = supabase.from("risk_scores").insert({
+        user_id: userId,
+        risk_score: computedScore,
+        answers: answers,
+      });
 
-      setSaving(false);
+      let result = await Promise.race([attempt1, timeout]);
+      if (result?.error) {
+        // If answers column isn’t recognized, retry without it
+        const msg = result.error.message || "";
+        if (msg.includes("answers") || msg.includes("schema cache")) {
+          const attempt2 = supabase.from("risk_scores").insert({
+            user_id: userId,
+            risk_score: computedScore,
+          });
+          result = await Promise.race([attempt2, timeout]);
+        }
+      }
+
+      if (result?.error) throw result.error;
+
       setStatus("Saved. Latest score updated.");
       await load();
-    } catch (err) {
+    } catch (e) {
+      setStatus("Save failed.");
+      setErrorText(e?.message || String(e));
+    } finally {
       setSaving(false);
-      setStatus(`Insert error: ${err.message || String(err)}`);
     }
   }
 
@@ -242,8 +204,14 @@ export default function Home() {
 
       <p style={{ marginTop: 12 }}>{status}</p>
 
+      {errorText ? (
+        <div style={{ marginTop: 10, padding: 12, borderRadius: 10, border: "1px solid #ffb3b3", background: "#fff2f2" }}>
+          <b>Error:</b> {errorText}
+        </div>
+      ) : null}
+
       {!userEmail ? (
-        <p>
+        <p style={{ marginTop: 12 }}>
           Go to <a href="/login">/login</a>.
         </p>
       ) : (
@@ -273,16 +241,8 @@ export default function Home() {
                   <div key={idx} style={{ padding: 10, border: "1px solid #eee", borderRadius: 12 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
                       <div><b>Score:</b> {h.risk_score}/10</div>
-                      <div style={{ opacity: 0.7 }}>{h.created_at ? fmt(h.created_at) : "—"}</div>
+                      <div style={{ opacity: 0.7 }}>{h.created_at ? new Date(h.created_at).toLocaleString() : "—"}</div>
                     </div>
-                    {h.answers ? (
-                      <details style={{ marginTop: 8 }}>
-                        <summary style={{ cursor: "pointer" }}>View answers</summary>
-                        <pre style={{ whiteSpace: "pre-wrap", marginTop: 8 }}>
-                          {JSON.stringify(h.answers, null, 2)}
-                        </pre>
-                      </details>
-                    ) : null}
                   </div>
                 ))}
               </div>
@@ -344,10 +304,10 @@ export default function Home() {
                 ) : (
                   <button
                     onClick={finishAndSave}
-                    disabled={saving || Object.keys(answers).length < QUESTIONS.length}
-                    style={{ padding: "10px 14px", opacity: saving ? 0.5 : 1 }}
+                    disabled={saving}
+                    style={{ padding: "10px 14px", opacity: saving ? 0.6 : 1 }}
                   >
-                    {saving ? "Saving..." : "Finish & Save Score"}
+                    {saving ? "Saving…" : "Finish & Save Score"}
                   </button>
                 )}
               </div>
