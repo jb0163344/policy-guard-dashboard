@@ -8,29 +8,36 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("");
 
-  // If already logged in, go straight to dashboard
   useEffect(() => {
+    // If already logged in, redirect
     (async () => {
+      if (!supabase) return;
       const { data } = await supabase.auth.getSession();
-      if (data?.session?.user) {
-        router.replace("/");
-      }
+      if (data?.session?.user) router.replace("/");
     })();
   }, [router]);
 
   async function signUp(e) {
     e.preventDefault();
     setStatus("Signing up...");
+    if (!supabase) {
+      setStatus("Client still loading. Refresh and try again.");
+      return;
+    }
+
     const { error } = await supabase.auth.signUp({ email, password });
-    setStatus(error ? `Error: ${error.message}` : "Signup OK. Now click Log in.");
+    setStatus(error ? `Error: ${error.message}` : "Signup OK. Now log in.");
   }
 
   async function logIn(e) {
     e.preventDefault();
     setStatus("Logging in...");
+    if (!supabase) {
+      setStatus("Client still loading. Refresh and try again.");
+      return;
+    }
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-
     if (error) {
       setStatus(`Error: ${error.message}`);
       return;
