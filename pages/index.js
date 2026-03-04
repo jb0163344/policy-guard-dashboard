@@ -22,9 +22,7 @@ const QUESTIONS = [
   ]},
 ];
 
-function clampScore(n) {
-  return Math.max(0, Math.min(10, n));
-}
+function clampScore(n) { return Math.max(0, Math.min(10, n)); }
 function riskBand(score) {
   if (score <= 2) return { level: "LOW", tone: "Stable posture. Maintain good habits." };
   if (score <= 5) return { level: "MODERATE", tone: "Some exposure. Tighten a few key controls." };
@@ -41,6 +39,9 @@ function recommendations(score, answers) {
   if ((answers.recovery ?? 0) >= 1) items.push("Verify recovery email/phone + store backup codes safely.");
   if (score >= 6) items.push("Secure your primary email first — it’s the master key to resets.");
   return items.slice(0, 7);
+}
+function fmt(ts) {
+  try { return new Date(ts).toLocaleString(); } catch { return String(ts); }
 }
 
 export default function Home() {
@@ -70,6 +71,11 @@ export default function Home() {
 
   async function load() {
     setErrorText("");
+    if (!supabase) {
+      setStatus("Loading client…");
+      return;
+    }
+
     setStatus("Loading session…");
     const { data, error } = await supabase.auth.getSession();
 
@@ -94,7 +100,6 @@ export default function Home() {
 
     setUserEmail(user.email);
     setUserId(user.id);
-    setStatus("Ready.");
 
     const { data: rows, error: readErr } = await supabase
       .from("risk_scores")
@@ -113,10 +118,12 @@ export default function Home() {
 
     setHistory(rows || []);
     setLatestScore((rows && rows[0] && rows[0].risk_score) ?? null);
+    setStatus("Ready.");
   }
 
   useEffect(() => {
     load();
+    if (!supabase) return;
     const { data: sub } = supabase.auth.onAuthStateChange(() => load());
     return () => sub?.subscription?.unsubscribe?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -136,6 +143,10 @@ export default function Home() {
 
   async function finishAndSave() {
     setErrorText("");
+    if (!supabase) {
+      setErrorText("Client still loading. Refresh and try again.");
+      return;
+    }
     if (!userId) {
       setErrorText("No user session found. Go to /login and log in again.");
       return;
@@ -153,7 +164,6 @@ export default function Home() {
     );
 
     try {
-      // Try with answers first
       const attempt1 = supabase.from("risk_scores").insert({
         user_id: userId,
         risk_score: computedScore,
@@ -161,8 +171,8 @@ export default function Home() {
       });
 
       let result = await Promise.race([attempt1, timeout]);
+
       if (result?.error) {
-        // If answers column isn’t recognized, retry without it
         const msg = result.error.message || "";
         if (msg.includes("answers") || msg.includes("schema cache")) {
           const attempt2 = supabase.from("risk_scores").insert({
@@ -186,6 +196,7 @@ export default function Home() {
   }
 
   async function logout() {
+    if (!supabase) return;
     await supabase.auth.signOut();
     window.location.href = "/login";
   }
@@ -241,7 +252,7 @@ export default function Home() {
                   <div key={idx} style={{ padding: 10, border: "1px solid #eee", borderRadius: 12 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
                       <div><b>Score:</b> {h.risk_score}/10</div>
-                      <div style={{ opacity: 0.7 }}>{h.created_at ? new Date(h.created_at).toLocaleString() : "—"}</div>
+                      <div style={{ opacity: 0.7 }}>{h.created_at ? fmt(h.created_at) : "—"}</div>
                     </div>
                   </div>
                 ))}
