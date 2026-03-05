@@ -1,10 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_URL = "https://sxvriggjkdseqahwdlws.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ymwuEpkN-0GtSLy4WxQBaQ_fR7-wpzG";
 
-// Prevent Next.js build/prerender from crashing on the server
-export const supabase =
-  typeof window === "undefined" || !url || !key
-    ? null
-    : createClient(url, key);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
