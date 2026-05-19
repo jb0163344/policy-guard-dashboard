@@ -1,0 +1,35 @@
+"use client";
+
+import { useState } from "react";
+
+export default function Page() {
+  const [result, setResult] = useState(null);
+
+  async function runScan() {
+    const res = await fetch("/api/risk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        failedLogins: 10,
+        fileChanges: 20,
+        networkSpikes: 15,
+        unusualGeo: 5,
+      }),
+    });
+
+    const data = await res.json();
+    setResult(data);
+  }
+
+  return (
+    <div style={{ padding: 40 }}>
+      <h1>QuantumSec</h1>
+
+      <button onClick={runScan}>
+        Run Risk Scan
+      </button>
+
+      <pre>{result && JSON.stringify(result, null, 2)}</pre>
+    </div>
+  );
+}
