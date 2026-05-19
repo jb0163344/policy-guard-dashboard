@@ -11,7 +11,7 @@ export default function Home() {
     // Simulated AI risk score
     const score = Math.floor(Math.random() * 100);
 
-    // Risk level logic
+    // Severity logic
     let severity = "low";
 
     if (score > 70) severity = "critical";
@@ -29,9 +29,10 @@ export default function Home() {
       ])
       .select();
 
-    console.log(riskData, riskError);
+    console.log("Risk Saved:", riskData);
+    console.log("Risk Error:", riskError);
 
-    // Save audit trail
+    // Save audit log
     const { error: auditError } = await supabase
       .from("audit_logs")
       .insert([
@@ -46,18 +47,23 @@ export default function Home() {
         },
       ]);
 
-    console.log(auditError);
+    console.log("Audit Error:", auditError);
 
-    // Optional: create incident automatically
+    // Auto-create incident if critical
     if (severity === "critical") {
-      await supabase.from("incidents").insert([
-        {
-          title: "Critical Identity Risk Detected",
-          severity: "critical",
-        },
-      ]);
+      const { error: incidentError } = await supabase
+        .from("incidents")
+        .insert([
+          {
+            title: "Critical Identity Risk Detected",
+            severity: "critical",
+          },
+        ]);
+
+      console.log("Incident Error:", incidentError);
     }
 
+    // Reload scores
     loadScores();
 
     setLoading(false);
@@ -69,7 +75,7 @@ export default function Home() {
       .select("*")
       .order("created_at", { ascending: false });
 
-    console.log(error);
+    console.log("Load Error:", error);
 
     if (data) {
       setScores(data);
@@ -90,11 +96,21 @@ export default function Home() {
         fontFamily: "Arial",
       }}
     >
-      <h1 style={{ fontSize: "42px" }}>
+      <h1
+        style={{
+          fontSize: "42px",
+          marginBottom: "10px",
+        }}
+      >
         QuantumSec™ Identity Firewall
       </h1>
 
-      <p style={{ opacity: 0.7 }}>
+      <p
+        style={{
+          opacity: 0.7,
+          marginBottom: "30px",
+        }}
+      >
         Autonomous AI Risk & Audit Platform
       </p>
 
@@ -103,7 +119,6 @@ export default function Home() {
         disabled={loading}
         style={{
           padding: "15px 30px",
-          marginTop: "20px",
           background: "#2563eb",
           border: "none",
           color: "white",
@@ -112,10 +127,12 @@ export default function Home() {
           cursor: "pointer",
         }}
       >
-        {loading ? "Running AI Assessment..." : "Run Security Assessment"}
+        {loading
+          ? "Running AI Assessment..."
+          : "Run Security Assessment"}
       </button>
 
-      <div style={{ marginTop: "40px" }}>
+      <div style={{ marginTop: "50px" }}>
         <h2>Latest Risk Assessments</h2>
 
         {scores.map((item) => (
@@ -129,7 +146,9 @@ export default function Home() {
             }}
           >
             <h3>Risk Score: {item.score}</h3>
+
             <p>Status: {item.status}</p>
+
             <p>
               Created:{" "}
               {new Date(item.created_at).toLocaleString()}
