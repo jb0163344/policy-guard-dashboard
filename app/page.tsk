@@ -1,40 +1,10 @@
-async function testRisk() {
+"use client";
 
-  const res = await fetch("/api/risk", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      identity_id: "test-user",
-      failedLogins: 10,
-      locationChange: true,
-      deviceUnknown: true,
-      impossibleTravel: false
-    })
-  });
-
-  const data = await res.json();
-
-  console.log(data);
-}
-
-export default function HomePage() {
-
+export default function Page() {
   return (
-    <main className="p-10">
-
-      <h1 className="text-5xl font-bold">
-        QuantumSec™ Identity Trust Fabric
-      </h1>
-
-      <button
-        onClick={testRisk}
-        className="mt-8 bg-black text-white px-6 py-3 rounded"
-      >
-        Run Risk Test
-      </button>
-
+    <main style={{ padding: 40 }}>
+      <h1>QuantumSec MVP</h1>
+      <p>System loading...</p>
     </main>
   );
 }
