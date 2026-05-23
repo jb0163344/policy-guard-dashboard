@@ -1,2 +1,3 @@
-import { supabase } from "../../../lib/supabaseClient";
-import { calculateRisk } from "../../../lib/riskEngine";
+export async function POST() {
+  return Response.json({ ok: true });
+}
