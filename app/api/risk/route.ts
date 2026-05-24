@@ -1,3 +1,5 @@
-return Response.json({
-  riskScore
-});
+export async function POST() {
+  return Response.json({
+    riskScore: 42,
+  });
+}
