@@ -1,3 +1,5 @@
 export async function GET() {
-  return Response.json({ ok: true });
+  return Response.json({
+    riskScore: 55,
+  });
 }
