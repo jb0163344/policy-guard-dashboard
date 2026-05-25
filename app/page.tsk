@@ -1,3 +1,53 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+
 export default function Page() {
-  return <h1>OK</h1>;
+  const [logs, setLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    // 1. LOAD INITIAL DATA
+    const load = async () => {
+      const { data } = await supabase
+        .from("audit_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      setLogs(data || []);
+    };
+
+    load();
+
+    // 2. REAL-TIME STREAM
+    const channel = supabase
+      .channel("audit_logs")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "audit_logs" },
+        (payload) => {
+          setLogs((prev) => [payload.new, ...prev]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  return (
+    <main style={{ padding: 20 }}>
+      <h1>Security Feed</h1>
+
+      {logs.map((log, i) => (
+        <div key={i} style={{ marginBottom: 10 }}>
+          <p>Risk: {log.risk_score}</p>
+          <p>IP: {log.ip_address}</p>
+          <p>Time: {log.created_at}</p>
+        </div>
+      ))}
+    </main>
+  );
 }
