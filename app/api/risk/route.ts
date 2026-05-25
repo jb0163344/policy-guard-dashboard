@@ -7,16 +7,24 @@ export async function POST(req: Request) {
   const riskScore = calculateRisk(body);
 
   const ip =
-    req.headers.get("x-forwarded-for") ||
-    "unknown";
+    req.headers.get("x-forwarded-for") || "unknown";
 
+  // 1. SAVE LOG
   await supabase.from("audit_logs").insert({
-    event_type: "risk_calculation",
+    event_type: "risk_check",
     ip_address: ip,
     payload: body,
     risk_score: riskScore,
-    created_at: new Date().toISOString(),
   });
 
-  return Response.json({ riskScore });
+  // 2. BASIC THREAT RULE
+  const threat =
+    riskScore > 80 ? "HIGH" :
+    riskScore > 50 ? "MEDIUM" :
+    "LOW";
+
+  return Response.json({
+    riskScore,
+    threat
+  });
 }
