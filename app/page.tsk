@@ -1,16 +1,38 @@
-useEffect(() => {
-  const channel = supabase
-    .channel("risk_scores")
-    .on(
-      "postgres_changes",
-      { event: "INSERT", schema: "public", table: "risk_scores" },
-      (payload) => {
-        console.log("New row:", payload);
-      }
-    )
-    .subscribe();
+"use client";
 
-  return () => {
-    supabase.removeChannel(channel);
+import { useState } from "react";
+
+export default function Page() {
+  const [result, setResult] = useState<number | null>(null);
+
+  const runRisk = async () => {
+    const res = await fetch("/api/risk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        identity_id: "test-user",
+        failedLogins: 6,
+        locationChange: true,
+        deviceUnknown: false,
+        impossibleTravel: false,
+      }),
+    });
+
+    const data = await res.json();
+    setResult(data.riskScore);
   };
-}, []);
+
+  return (
+    <main style={{ padding: 40 }}>
+      <h1>Quantum Map</h1>
+
+      <button onClick={runRisk}>
+        Run Risk Simulation
+      </button>
+
+      {result !== null && (
+        <p>Risk Score: {result}</p>
+      )}
+    </main>
+  );
+}
