@@ -1,14 +1,29 @@
-import { profiles } from "./profiles";
+export type RiskEvent = {
+  type: "LOGIN_FAILURE" | "DEVICE_UNKNOWN" | "LOCATION_ANOMALY" | "IMPOSSIBLE_TRAVEL";
+};
 
-export function calculateRisk(data: any, profileKey: keyof typeof profiles) {
-  const profile = profiles[profileKey];
-
+export function calculateRisk(events: RiskEvent[]) {
   let score = 0;
 
-  if (data.failedLogins > 5) score += profile.weights.failedLogins;
-  if (data.locationChange) score += profile.weights.locationChange;
-  if (data.deviceUnknown) score += profile.weights.deviceUnknown;
-  if (data.impossibleTravel) score += profile.weights.impossibleTravel;
+  for (const event of events) {
+    switch (event.type) {
+      case "LOGIN_FAILURE":
+        score += 10;
+        break;
+
+      case "DEVICE_UNKNOWN":
+        score += 20;
+        break;
+
+      case "LOCATION_ANOMALY":
+        score += 25;
+        break;
+
+      case "IMPOSSIBLE_TRAVEL":
+        score += 40;
+        break;
+    }
+  }
 
   return Math.min(score, 100);
 }
