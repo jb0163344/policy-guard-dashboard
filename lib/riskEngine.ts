@@ -1,8 +1,14 @@
+export type RiskEventType =
+  | "LOGIN_FAILURE"
+  | "DEVICE_UNKNOWN"
+  | "LOCATION_ANOMALY"
+  | "IMPOSSIBLE_TRAVEL";
+
 export type RiskEvent = {
-  type: "LOGIN_FAILURE" | "DEVICE_UNKNOWN" | "LOCATION_ANOMALY" | "IMPOSSIBLE_TRAVEL";
+  type: RiskEventType;
 };
 
-export function calculateRisk(events: RiskEvent[]) {
+export function calculateRisk(events: RiskEvent[]): number {
   let score = 0;
 
   for (const event of events) {
