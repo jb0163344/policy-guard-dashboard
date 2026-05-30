@@ -18,6 +18,13 @@ import ThreatMap from "../components/ThreatMap";
 
 type ViewMode = "TIMELINE" | "MAP";
 
+type UIAnalysis = {
+  severity: string;
+  impact: string;
+  confidence: string;
+  explanation: string;
+};
+
 export default function Home() {
   const [industry, setIndustry] =
     useState<IndustryType>("ENTERPRISE");
@@ -37,7 +44,16 @@ export default function Home() {
   }, [events, industry]);
 
   const latestEvent = events[events.length - 1];
-  const analysis = explainThreat(latestEvent.type);
+
+  // Convert engine output → UI-safe object (FORCED STRING SAFETY)
+  const raw = explainThreat(latestEvent.type);
+
+  const analysis: UIAnalysis = {
+    severity: `${raw.severity}`,
+    impact: `${raw.impact}`,
+    confidence: `${raw.confidence}`,
+    explanation: `${raw.explanation}`,
+  };
 
   function addEvent(type: RiskEvent["type"]) {
     setEvents((prev) => [
