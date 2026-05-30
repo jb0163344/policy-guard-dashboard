@@ -14,10 +14,16 @@ import RiskCore from "../components/RiskCore";
 import ThreatAnalyst from "../components/ThreatAnalyst";
 import ThreatTimeline from "../components/ThreatTimeline";
 import MissionControl from "../components/MissionControl";
+import ThreatMap from "../components/ThreatMap";
+
+type ViewMode = "TIMELINE" | "MAP";
 
 export default function Home() {
   const [industry, setIndustry] =
     useState<IndustryType>("ENTERPRISE");
+
+  const [view, setView] =
+    useState<ViewMode>("TIMELINE");
 
   const [events, setEvents] = useState<RiskEvent[]>([
     {
@@ -31,10 +37,7 @@ export default function Home() {
   }, [events, industry]);
 
   const latestEvent = events[events.length - 1];
-
-  const analysis = explainThreat(
-    latestEvent.type
-  );
+  const analysis = explainThreat(latestEvent.type);
 
   function addEvent(type: RiskEvent["type"]) {
     setEvents((prev) => [
@@ -99,7 +102,56 @@ export default function Home() {
           overflowY: "auto",
         }}
       >
-        <ThreatTimeline events={events} />
+        {/* VIEW TOGGLE */}
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            marginBottom: 20,
+          }}
+        >
+          <button
+            onClick={() => setView("TIMELINE")}
+            style={{
+              padding: 8,
+              background:
+                view === "TIMELINE"
+                  ? "#00ff88"
+                  : "transparent",
+              color:
+                view === "TIMELINE"
+                  ? "#000"
+                  : "#fff",
+              border: "1px solid #333",
+            }}
+          >
+            Timeline
+          </button>
+
+          <button
+            onClick={() => setView("MAP")}
+            style={{
+              padding: 8,
+              background:
+                view === "MAP"
+                  ? "#00ff88"
+                  : "transparent",
+              color:
+                view === "MAP"
+                  ? "#000"
+                  : "#fff",
+              border: "1px solid #333",
+            }}
+          >
+            Map
+          </button>
+        </div>
+
+        {view === "TIMELINE" ? (
+          <ThreatTimeline events={events} />
+        ) : (
+          <ThreatMap events={events} />
+        )}
       </section>
 
       {/* RIGHT PANEL */}
