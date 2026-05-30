@@ -19,6 +19,7 @@ export type RiskEvent = {
 export type EventInsight = {
   severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   impact: number;
+  confidence: string;
   explanation: string;
 };
 
@@ -29,24 +30,28 @@ const industryWeights = {
     LOCATION_ANOMALY: 25,
     IMPOSSIBLE_TRAVEL: 40,
   },
+
   HEALTHCARE: {
     LOGIN_FAILURE: 10,
     DEVICE_UNKNOWN: 25,
     LOCATION_ANOMALY: 30,
     IMPOSSIBLE_TRAVEL: 45,
   },
+
   GOVERNMENT: {
     LOGIN_FAILURE: 15,
     DEVICE_UNKNOWN: 30,
     LOCATION_ANOMALY: 35,
     IMPOSSIBLE_TRAVEL: 50,
   },
+
   FINANCE: {
     LOGIN_FAILURE: 15,
     DEVICE_UNKNOWN: 25,
     LOCATION_ANOMALY: 35,
     IMPOSSIBLE_TRAVEL: 50,
   },
+
   ENTERPRISE: {
     LOGIN_FAILURE: 10,
     DEVICE_UNKNOWN: 20,
@@ -78,6 +83,7 @@ export function getEventInsight(
       return {
         severity: "LOW",
         impact: 10,
+        confidence: "84%",
         explanation:
           "Authentication failure detected. Possible credential mismatch or brute-force attempt.",
       };
@@ -86,6 +92,7 @@ export function getEventInsight(
       return {
         severity: "MEDIUM",
         impact: 20,
+        confidence: "88%",
         explanation:
           "Login attempt from an unrecognized device not previously associated with this user.",
       };
@@ -94,6 +101,7 @@ export function getEventInsight(
       return {
         severity: "HIGH",
         impact: 25,
+        confidence: "92%",
         explanation:
           "Access attempt originated from an unusual geographic location outside normal behavior patterns.",
       };
@@ -102,6 +110,7 @@ export function getEventInsight(
       return {
         severity: "CRITICAL",
         impact: 40,
+        confidence: "97%",
         explanation:
           "Geographic login pattern indicates physically impossible travel velocity between sessions.",
       };
@@ -110,7 +119,7 @@ export function getEventInsight(
 
 export function explainThreat(
   type: RiskEventType
-) {
+): EventInsight {
   return getEventInsight(type);
 }
 
