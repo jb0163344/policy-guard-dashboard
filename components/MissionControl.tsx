@@ -1,13 +1,20 @@
 "use client";
 
-import { RiskEvent } from "../lib/riskEngine";
+import {
+  RiskEvent,
+  IndustryType,
+} from "../lib/riskEngine";
 
 type Props = {
   addEvent: (type: RiskEvent["type"]) => void;
+  industry: IndustryType;
+  setIndustry: (value: IndustryType) => void;
 };
 
 export default function MissionControl({
   addEvent,
+  industry,
+  setIndustry,
 }: Props) {
   return (
     <>
@@ -15,9 +22,46 @@ export default function MissionControl({
 
       <div
         style={{
+          marginTop: 20,
+          marginBottom: 20,
+        }}
+      >
+        <label>Industry</label>
+
+        <select
+          value={industry}
+          onChange={(e) =>
+            setIndustry(
+              e.target.value as IndustryType
+            )
+          }
+        >
+          <option value="LAW_FIRM">
+            Law Firm
+          </option>
+
+          <option value="HEALTHCARE">
+            Healthcare
+          </option>
+
+          <option value="GOVERNMENT">
+            Government
+          </option>
+
+          <option value="FINANCE">
+            Finance
+          </option>
+
+          <option value="ENTERPRISE">
+            Enterprise
+          </option>
+        </select>
+      </div>
+
+      <div
+        style={{
           display: "grid",
           gap: 10,
-          marginTop: 20,
         }}
       >
         <button
