@@ -1,12 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
+
 import {
-  calculateRisk,
   RiskEvent,
+  calculateRisk,
   explainThreat,
   createTimestamp,
 } from "../lib/riskEngine";
+
+import RiskCore from "../components/RiskCore";
+import ThreatAnalyst from "../components/ThreatAnalyst";
+import ThreatTimeline from "../components/ThreatTimeline";
+import MissionControl from "../components/MissionControl";
 
 export default function Home() {
   const [events, setEvents] = useState<RiskEvent[]>([
@@ -16,22 +22,13 @@ export default function Home() {
     },
   ]);
 
-  const riskScore = useMemo(
-    () => calculateRisk(events),
-    [events]
-  );
+  const riskScore = useMemo(() => {
+    return calculateRisk(events);
+  }, [events]);
 
   const latestEvent = events[events.length - 1];
-  const analysis = explainThreat(latestEvent.type);
 
-  const status =
-    riskScore > 80
-      ? "CRITICAL"
-      : riskScore > 50
-      ? "HIGH"
-      : riskScore > 20
-      ? "MEDIUM"
-      : "LOW";
+  const analysis = explainThreat(latestEvent.type);
 
   function addEvent(type: RiskEvent["type"]) {
     setEvents((prev) => [
@@ -52,17 +49,28 @@ export default function Home() {
       ? "#ffe600"
       : "#00ff88";
 
+  const status =
+    riskScore > 80
+      ? "CRITICAL"
+      : riskScore > 50
+      ? "HIGH"
+      : riskScore > 20
+      ? "MEDIUM"
+      : "LOW";
+
   return (
     <main
       style={{
         height: "100vh",
         background:
-          "radial-gradient(circle at center,#111827 0%,#05070d 70%)",
+          "radial-gradient(circle at center, #111827 0%, #05070d 70%)",
         color: "white",
         display: "grid",
         gridTemplateColumns: "260px 1fr 340px",
+        overflow: "hidden",
       }}
     >
+      {/* LEFT PANEL */}
       <aside
         style={{
           padding: 24,
@@ -70,104 +78,20 @@ export default function Home() {
             "1px solid rgba(255,255,255,.08)",
         }}
       >
-        <h2>MISSION CONTROL</h2>
-
-        <div
-          style={{
-            display: "grid",
-            gap: 10,
-            marginTop: 20,
-          }}
-        >
-          <button
-            onClick={() =>
-              addEvent("LOGIN_FAILURE")
-            }
-          >
-            Failed Login
-          </button>
-
-          <button
-            onClick={() =>
-              addEvent("DEVICE_UNKNOWN")
-            }
-          >
-            Unknown Device
-          </button>
-
-          <button
-            onClick={() =>
-              addEvent("LOCATION_ANOMALY")
-            }
-          >
-            Location Anomaly
-          </button>
-
-          <button
-            onClick={() =>
-              addEvent("IMPOSSIBLE_TRAVEL")
-            }
-          >
-            Impossible Travel
-          </button>
-        </div>
+        <MissionControl addEvent={addEvent} />
       </aside>
 
+      {/* CENTER PANEL */}
       <section
         style={{
           padding: 24,
           overflowY: "auto",
         }}
       >
-        <h1>Threat Timeline</h1>
-
-        {events.map((event, index) => (
-          <div key={index}>
-            <div
-              style={{
-                marginTop: 20,
-                padding: 16,
-                borderRadius: 12,
-                background:
-                  "rgba(255,255,255,.04)",
-                border:
-                  "1px solid rgba(255,255,255,.08)",
-              }}
-            >
-              <div
-                style={{
-                  opacity: 0.6,
-                  fontSize: 12,
-                }}
-              >
-                {event.timestamp}
-              </div>
-
-              <div
-                style={{
-                  fontSize: 18,
-                  marginTop: 6,
-                }}
-              >
-                {event.type}
-              </div>
-            </div>
-
-            {index !== events.length - 1 && (
-              <div
-                style={{
-                  textAlign: "center",
-                  opacity: 0.4,
-                  padding: 8,
-                }}
-              >
-                ↓
-              </div>
-            )}
-          </div>
-        ))}
+        <ThreatTimeline events={events} />
       </section>
 
+      {/* RIGHT PANEL */}
       <aside
         style={{
           padding: 24,
@@ -179,59 +103,27 @@ export default function Home() {
 
         <div
           style={{
-            width: 180,
-            height: 180,
-            borderRadius: "50%",
-            border: `4px solid ${riskColor}`,
-            margin: "30px auto",
+            marginTop: 30,
             display: "flex",
-            alignItems: "center",
             justifyContent: "center",
-            fontSize: 42,
-            fontWeight: 700,
-            boxShadow: `0 0 40px ${riskColor}`,
           }}
         >
-          {riskScore}
+          <RiskCore riskScore={riskScore} />
         </div>
 
-        <h3
+        <div
           style={{
             textAlign: "center",
+            marginTop: 20,
+            fontSize: 28,
+            fontWeight: 700,
             color: riskColor,
           }}
         >
           {status}
-        </h3>
-
-        <div
-          style={{
-            marginTop: 30,
-            border:
-              "1px solid rgba(255,255,255,.08)",
-            borderRadius: 12,
-            padding: 16,
-          }}
-        >
-          <h4>AI Threat Analyst</h4>
-
-          <p>
-            <strong>Severity:</strong>{" "}
-            {analysis.severity}
-          </p>
-
-          <p>
-            <strong>Impact:</strong>{" "}
-            {analysis.impact}
-          </p>
-
-          <p>
-            <strong>Confidence:</strong>{" "}
-            {analysis.confidence}
-          </p>
-
-          <p>{analysis.explanation}</p>
         </div>
+
+        <ThreatAnalyst analysis={analysis} />
       </aside>
     </main>
   );
