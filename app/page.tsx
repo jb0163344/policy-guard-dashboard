@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 import {
   RiskEvent,
@@ -9,6 +9,8 @@ import {
   explainThreat,
   createTimestamp,
 } from "../lib/riskEngine";
+
+import { supabase } from "../lib/supabaseClient";
 
 import RiskCore from "../components/RiskCore";
 import ThreatAnalyst from "../components/ThreatAnalyst";
@@ -32,21 +34,48 @@ export default function Home() {
   const [view, setView] =
     useState<ViewMode>("TIMELINE");
 
-  const [events, setEvents] = useState<RiskEvent[]>([
-    {
-      type: "LOGIN_FAILURE",
-      timestamp: createTimestamp(),
-    },
-  ]);
+  const [events, setEvents] = useState<RiskEvent[]>([]);
 
+  // =========================
+  // LOAD EVENTS FROM SUPABASE
+  // =========================
+  useEffect(() => {
+    const loadEvents = async () => {
+      const { data } = await supabase
+        .from("risk_events")
+        .select("*")
+        .order("timestamp", { ascending: true });
+
+      if (data && data.length > 0) {
+        setEvents(
+          data.map((e: any) => ({
+            type: e.type,
+            timestamp: e.timestamp,
+          }))
+        );
+      } else {
+        setEvents([
+          {
+            type: "LOGIN_FAILURE",
+            timestamp: createTimestamp(),
+          },
+        ]);
+      }
+    };
+
+    loadEvents();
+  }, []);
+
+  // =========================
+  // RISK CALCULATION
+  // =========================
   const riskScore = useMemo(() => {
     return calculateRisk(events, industry);
   }, [events, industry]);
 
   const latestEvent = events[events.length - 1];
 
-  // Convert engine output → UI-safe object (FORCED STRING SAFETY)
-  const raw = explainThreat(latestEvent.type);
+  const raw = explainThreat(latestEvent?.type);
 
   const analysis: UIAnalysis = {
     severity: `${raw.severity}`,
@@ -55,14 +84,27 @@ export default function Home() {
     explanation: `${raw.explanation}`,
   };
 
-  function addEvent(type: RiskEvent["type"]) {
-    setEvents((prev) => [
-      ...prev,
-      {
-        type,
-        timestamp: createTimestamp(),
-      },
-    ]);
+  // =========================
+  // ADD EVENT + SAVE TO DB
+  // =========================
+  async function addEvent(type: RiskEvent["type"]) {
+    const newEvent: RiskEvent = {
+      type,
+      timestamp: createTimestamp(),
+    };
+
+    const updatedEvents = [...events, newEvent];
+
+    setEvents(updatedEvents);
+
+    const score = calculateRisk(updatedEvents, industry);
+
+    await supabase.from("risk_events").insert({
+      type,
+      industry,
+      timestamp: newEvent.timestamp,
+      risk_score: score,
+    });
   }
 
   const riskColor =
