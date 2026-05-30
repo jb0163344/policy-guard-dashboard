@@ -16,6 +16,12 @@ export type RiskEvent = {
   timestamp: string;
 };
 
+export type EventInsight = {
+  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  impact: number;
+  explanation: string;
+};
+
 const industryWeights = {
   LAW_FIRM: {
     LOGIN_FAILURE: 10,
@@ -23,28 +29,24 @@ const industryWeights = {
     LOCATION_ANOMALY: 25,
     IMPOSSIBLE_TRAVEL: 40,
   },
-
   HEALTHCARE: {
     LOGIN_FAILURE: 10,
     DEVICE_UNKNOWN: 25,
     LOCATION_ANOMALY: 30,
     IMPOSSIBLE_TRAVEL: 45,
   },
-
   GOVERNMENT: {
     LOGIN_FAILURE: 15,
     DEVICE_UNKNOWN: 30,
     LOCATION_ANOMALY: 35,
     IMPOSSIBLE_TRAVEL: 50,
   },
-
   FINANCE: {
     LOGIN_FAILURE: 15,
     DEVICE_UNKNOWN: 25,
     LOCATION_ANOMALY: 35,
     IMPOSSIBLE_TRAVEL: 50,
   },
-
   ENTERPRISE: {
     LOGIN_FAILURE: 10,
     DEVICE_UNKNOWN: 20,
@@ -57,9 +59,9 @@ export function calculateRisk(
   events: RiskEvent[],
   industry: IndustryType
 ): number {
-  let score = 0;
-
   const weights = industryWeights[industry];
+
+  let score = 0;
 
   for (const event of events) {
     score += weights[event.type];
@@ -68,46 +70,48 @@ export function calculateRisk(
   return Math.min(score, 100);
 }
 
-export function explainThreat(
+export function getEventInsight(
   type: RiskEventType
-) {
+): EventInsight {
   switch (type) {
     case "LOGIN_FAILURE":
       return {
         severity: "LOW",
-        confidence: "84%",
-        impact: "+10",
+        impact: 10,
         explanation:
-          "Multiple authentication failures detected.",
+          "Authentication failure detected. Possible credential mismatch or brute-force attempt.",
       };
 
     case "DEVICE_UNKNOWN":
       return {
         severity: "MEDIUM",
-        confidence: "88%",
-        impact: "+20",
+        impact: 20,
         explanation:
-          "Authentication attempt detected from an unknown device.",
+          "Login attempt from an unrecognized device not previously associated with this user.",
       };
 
     case "LOCATION_ANOMALY":
       return {
         severity: "HIGH",
-        confidence: "92%",
-        impact: "+25",
+        impact: 25,
         explanation:
-          "Activity originated from an unexpected location.",
+          "Access attempt originated from an unusual geographic location outside normal behavior patterns.",
       };
 
     case "IMPOSSIBLE_TRAVEL":
       return {
         severity: "CRITICAL",
-        confidence: "97%",
-        impact: "+40",
+        impact: 40,
         explanation:
-          "Travel pattern exceeds realistic movement limits.",
+          "Geographic login pattern indicates physically impossible travel velocity between sessions.",
       };
   }
+}
+
+export function explainThreat(
+  type: RiskEventType
+) {
+  return getEventInsight(type);
 }
 
 export function createTimestamp() {
