@@ -8,7 +8,9 @@ export type RiskEvent = {
   type: RiskEventType;
 };
 
-export function calculateRisk(events: RiskEvent[]): number {
+export function calculateRisk(
+  events: RiskEvent[]
+): number {
   let score = 0;
 
   for (const event of events) {
@@ -34,7 +36,9 @@ export function calculateRisk(events: RiskEvent[]): number {
   return Math.min(score, 100);
 }
 
-export function explainThreat(type: RiskEventType) {
+export function explainThreat(
+  type: RiskEventType
+) {
   switch (type) {
     case "LOGIN_FAILURE":
       return {
