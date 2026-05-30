@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import {
   RiskEvent,
+  IndustryType,
   calculateRisk,
   explainThreat,
   createTimestamp,
@@ -15,6 +16,9 @@ import ThreatTimeline from "../components/ThreatTimeline";
 import MissionControl from "../components/MissionControl";
 
 export default function Home() {
+  const [industry, setIndustry] =
+    useState<IndustryType>("ENTERPRISE");
+
   const [events, setEvents] = useState<RiskEvent[]>([
     {
       type: "LOGIN_FAILURE",
@@ -23,12 +27,14 @@ export default function Home() {
   ]);
 
   const riskScore = useMemo(() => {
-    return calculateRisk(events);
-  }, [events]);
+    return calculateRisk(events, industry);
+  }, [events, industry]);
 
   const latestEvent = events[events.length - 1];
 
-  const analysis = explainThreat(latestEvent.type);
+  const analysis = explainThreat(
+    latestEvent.type
+  );
 
   function addEvent(type: RiskEvent["type"]) {
     setEvents((prev) => [
@@ -66,7 +72,8 @@ export default function Home() {
           "radial-gradient(circle at center, #111827 0%, #05070d 70%)",
         color: "white",
         display: "grid",
-        gridTemplateColumns: "260px 1fr 340px",
+        gridTemplateColumns:
+          "260px 1fr 340px",
         overflow: "hidden",
       }}
     >
@@ -78,7 +85,11 @@ export default function Home() {
             "1px solid rgba(255,255,255,.08)",
         }}
       >
-        <MissionControl addEvent={addEvent} />
+        <MissionControl
+          addEvent={addEvent}
+          industry={industry}
+          setIndustry={setIndustry}
+        />
       </aside>
 
       {/* CENTER PANEL */}
@@ -121,6 +132,16 @@ export default function Home() {
           }}
         >
           {status}
+        </div>
+
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: 10,
+            opacity: 0.7,
+          }}
+        >
+          Industry: {industry}
         </div>
 
         <ThreatAnalyst analysis={analysis} />
