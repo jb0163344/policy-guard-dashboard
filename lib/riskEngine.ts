@@ -6,6 +6,7 @@ export type RiskEventType =
 
 export type RiskEvent = {
   type: RiskEventType;
+  timestamp: string;
 };
 
 export function calculateRisk(
@@ -76,4 +77,8 @@ export function explainThreat(
           "Authentication events indicate travel between distant locations within an unrealistic timeframe.",
       };
   }
+}
+
+export function createTimestamp() {
+  return new Date().toLocaleTimeString();
 }
