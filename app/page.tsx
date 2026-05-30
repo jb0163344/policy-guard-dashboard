@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { calculateRisk, RiskEvent } from "../lib/riskEngine";
+import {
+  calculateRisk,
+  RiskEvent,
+  explainThreat,
+} from "../lib/riskEngine";
 
 export default function Home() {
   const [events, setEvents] = useState<RiskEvent[]>([
@@ -11,6 +15,9 @@ export default function Home() {
   const riskScore = useMemo(() => {
     return calculateRisk(events);
   }, [events]);
+
+  const latestEvent = events[events.length - 1];
+  const analysis = explainThreat(latestEvent.type);
 
   const status =
     riskScore > 80
@@ -56,7 +63,12 @@ export default function Home() {
       >
         <h2 style={{ marginBottom: 20 }}>MISSION CONTROL</h2>
 
-        <div style={{ display: "grid", gap: 10 }}>
+        <div
+          style={{
+            display: "grid",
+            gap: 10,
+          }}
+        >
           <button onClick={() => addEvent("LOGIN_FAILURE")}>
             Failed Login
           </button>
@@ -74,11 +86,21 @@ export default function Home() {
           </button>
         </div>
 
-        <hr style={{ margin: "24px 0", opacity: 0.2 }} />
+        <hr
+          style={{
+            margin: "24px 0",
+            opacity: 0.2,
+          }}
+        />
 
         <h4>Business Profiles</h4>
 
-        <div style={{ display: "grid", gap: 8 }}>
+        <div
+          style={{
+            display: "grid",
+            gap: 8,
+          }}
+        >
           <button>Law Firm</button>
           <button>Clinic</button>
           <button>Government</button>
@@ -86,7 +108,7 @@ export default function Home() {
         </div>
       </aside>
 
-      {/* CENTER */}
+      {/* CENTER PANEL */}
       <section
         style={{
           padding: "24px",
@@ -113,9 +135,9 @@ export default function Home() {
             gap: 12,
           }}
         >
-          {events.map((e, i) => (
+          {events.map((event, index) => (
             <div
-              key={i}
+              key={index}
               style={{
                 border: "1px solid rgba(255,255,255,.08)",
                 borderRadius: 14,
@@ -129,7 +151,7 @@ export default function Home() {
                   opacity: 0.6,
                 }}
               >
-                EVENT #{i + 1}
+                EVENT #{index + 1}
               </div>
 
               <div
@@ -138,7 +160,7 @@ export default function Home() {
                   marginTop: 4,
                 }}
               >
-                {e.type}
+                {event.type}
               </div>
             </div>
           ))}
@@ -185,7 +207,9 @@ export default function Home() {
             textAlign: "center",
           }}
         >
-          <div style={{ opacity: 0.6 }}>CURRENT STATUS</div>
+          <div style={{ opacity: 0.6 }}>
+            CURRENT STATUS
+          </div>
 
           <div
             style={{
@@ -206,12 +230,28 @@ export default function Home() {
             padding: 16,
           }}
         >
-          <h4>AI Risk Analysis</h4>
+          <h4>AI Threat Analyst</h4>
 
-          <p style={{ opacity: 0.8 }}>
-            Monitoring behavioral anomalies, device reputation,
-            authentication failures, and location inconsistencies.
-          </p>
+          <div style={{ marginTop: 12 }}>
+            <div>
+              <strong>Severity:</strong>{" "}
+              {analysis.severity}
+            </div>
+
+            <div>
+              <strong>Risk Impact:</strong>{" "}
+              {analysis.impact}
+            </div>
+
+            <div>
+              <strong>Confidence:</strong>{" "}
+              {analysis.confidence}
+            </div>
+
+            <p style={{ marginTop: 12 }}>
+              {analysis.explanation}
+            </p>
+          </div>
         </div>
       </aside>
     </main>
