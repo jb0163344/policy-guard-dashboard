@@ -21,7 +21,8 @@ export default function RiskCore({
       ? "0 0 80px"
       : riskScore > 50
       ? "0 0 60px"
-      : "0 0 40px"
+      : riskScore > 20
+      ? "0 0 40px"
       : "0 0 20px";
 
   return (
