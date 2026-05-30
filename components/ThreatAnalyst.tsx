@@ -1,44 +1,43 @@
 "use client";
 
-type Props = {
-  analysis: {
-    severity: string;
-    impact: string;
-    confidence: string;
-    explanation: string;
-  };
+type Analysis = {
+  severity: string;
+  impact: string;
+  confidence: string;
+  explanation: string;
 };
 
 export default function ThreatAnalyst({
   analysis,
-}: Props) {
+}: {
+  analysis: Analysis;
+}) {
   return (
     <div
       style={{
-        marginTop: 30,
-        border: "1px solid rgba(255,255,255,.08)",
-        borderRadius: 12,
+        marginTop: 20,
         padding: 16,
+        borderRadius: 12,
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(255,255,255,0.08)",
       }}
     >
-      <h4>AI Threat Analyst</h4>
+      <h3>AI ANALYST</h3>
 
-      <p>
-        <strong>Severity:</strong>{" "}
-        {analysis.severity}
+      <div style={{ marginTop: 10 }}>
+        <div>Severity: {analysis.severity}</div>
+        <div>Impact: {analysis.impact}</div>
+        <div>Confidence: {analysis.confidence}</div>
+      </div>
+
+      <p
+        style={{
+          marginTop: 10,
+          opacity: 0.8,
+        }}
+      >
+        {analysis.explanation}
       </p>
-
-      <p>
-        <strong>Impact:</strong>{" "}
-        {analysis.impact}
-      </p>
-
-      <p>
-        <strong>Confidence:</strong>{" "}
-        {analysis.confidence}
-      </p>
-
-      <p>{analysis.explanation}</p>
     </div>
   );
 }
