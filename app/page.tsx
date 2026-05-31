@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   RiskEvent,
@@ -37,7 +37,7 @@ export default function Home() {
   const [events, setEvents] = useState<RiskEvent[]>([]);
 
   // =========================
-  // LOAD EVENTS (SAFE)
+  // LOAD EVENTS (SAFE + GUARDED)
   // =========================
   useEffect(() => {
     const load = async () => {
@@ -80,10 +80,10 @@ export default function Home() {
   const raw = explainThreat(latestEvent?.type);
 
   const analysis: UIAnalysis = {
-    severity: `${raw?.severity ?? "LOW"}`,
-    impact: `${raw?.impact ?? 0}`,
-    confidence: `${raw?.confidence ?? "0%"}`,
-    explanation: `${raw?.explanation ?? "No data"}`,
+    severity: raw?.severity ?? "LOW",
+    impact: String(raw?.impact ?? 0),
+    confidence: raw?.confidence ?? "0%",
+    explanation: raw?.explanation ?? "No data available",
   };
 
   // =========================
@@ -132,11 +132,11 @@ export default function Home() {
     <main
       style={{
         height: "100vh",
+        display: "grid",
+        gridTemplateColumns: "260px 1fr 340px",
         background:
           "radial-gradient(circle at center, #111827 0%, #05070d 70%)",
         color: "white",
-        display: "grid",
-        gridTemplateColumns: "260px 1fr 340px",
         overflow: "hidden",
       }}
     >
@@ -144,8 +144,7 @@ export default function Home() {
       <aside
         style={{
           padding: 24,
-          borderRight:
-            "1px solid rgba(255,255,255,.08)",
+          borderRight: "1px solid rgba(255,255,255,0.08)",
         }}
       >
         <MissionControl
@@ -162,25 +161,14 @@ export default function Home() {
           overflowY: "auto",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            marginBottom: 20,
-          }}
-        >
+        <div style={{ display: "flex", gap: 10 }}>
           <button
             onClick={() => setView("TIMELINE")}
             style={{
               padding: 8,
               background:
-                view === "TIMELINE"
-                  ? "#00ff88"
-                  : "transparent",
-              color:
-                view === "TIMELINE"
-                  ? "#000"
-                  : "#fff",
+                view === "TIMELINE" ? "#00ff88" : "transparent",
+              color: view === "TIMELINE" ? "#000" : "#fff",
               border: "1px solid #333",
             }}
           >
@@ -192,13 +180,8 @@ export default function Home() {
             style={{
               padding: 8,
               background:
-                view === "MAP"
-                  ? "#00ff88"
-                  : "transparent",
-              color:
-                view === "MAP"
-                  ? "#000"
-                  : "#fff",
+                view === "MAP" ? "#00ff88" : "transparent",
+              color: view === "MAP" ? "#000" : "#fff",
               border: "1px solid #333",
             }}
           >
@@ -206,36 +189,30 @@ export default function Home() {
           </button>
         </div>
 
-        {view === "TIMELINE" ? (
-          <ThreatTimeline events={events} />
-        ) : (
-          <ThreatMap events={events} />
-        )}
+        <div style={{ marginTop: 20 }}>
+          {view === "TIMELINE" ? (
+            <ThreatTimeline events={events} />
+          ) : (
+            <ThreatMap events={events} />
+          )}
+        </div>
       </section>
 
       {/* RIGHT PANEL */}
       <aside
         style={{
           padding: 24,
-          borderLeft:
-            "1px solid rgba(255,255,255,.08)",
+          borderLeft: "1px solid rgba(255,255,255,0.08)",
         }}
       >
         <h2>RISK ENGINE</h2>
 
-        <div
-          style={{
-            marginTop: 30,
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
+        <div style={{ marginTop: 30 }}>
           <RiskCore riskScore={riskScore} />
         </div>
 
         <div
           style={{
-            textAlign: "center",
             marginTop: 20,
             fontSize: 28,
             fontWeight: 700,
@@ -245,13 +222,7 @@ export default function Home() {
           {status}
         </div>
 
-        <div
-          style={{
-            textAlign: "center",
-            marginTop: 10,
-            opacity: 0.7,
-          }}
-        >
+        <div style={{ opacity: 0.7, marginTop: 10 }}>
           Industry: {industry}
         </div>
 
