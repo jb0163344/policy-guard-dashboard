@@ -10,6 +10,8 @@ import {
   createTimestamp,
 } from "../lib/riskEngine";
 
+import { supabase } from "../lib/supabaseClient";
+
 import RiskCore from "../components/RiskCore";
 import ThreatAnalyst from "../components/ThreatAnalyst";
 import ThreatTimeline from "../components/ThreatTimeline";
@@ -45,7 +47,6 @@ export default function Home() {
 
   const latestEvent = events[events.length - 1];
 
-  // Convert engine output → UI-safe object (FORCED STRING SAFETY)
   const raw = explainThreat(latestEvent.type);
 
   const analysis: UIAnalysis = {
@@ -55,14 +56,26 @@ export default function Home() {
     explanation: `${raw.explanation}`,
   };
 
-  function addEvent(type: RiskEvent["type"]) {
-    setEvents((prev) => [
-      ...prev,
-      {
-        type,
-        timestamp: createTimestamp(),
-      },
-    ]);
+  async function addEvent(type: RiskEvent["type"]) {
+    const newEvent: RiskEvent = {
+      type,
+      timestamp: createTimestamp(),
+    };
+
+    const updatedEvents = [...events, newEvent];
+    setEvents(updatedEvents);
+
+    // 🔥 SUPABASE PERSISTENCE (DAY 4 FIX)
+    const { error } = await supabase.from("risk_events").insert({
+      type: newEvent.type,
+      timestamp: newEvent.timestamp,
+      risk_score: calculateRisk(updatedEvents, industry),
+      industry,
+    });
+
+    if (error) {
+      console.error("Supabase insert error:", error.message);
+    }
   }
 
   const riskColor =
@@ -91,8 +104,7 @@ export default function Home() {
           "radial-gradient(circle at center, #111827 0%, #05070d 70%)",
         color: "white",
         display: "grid",
-        gridTemplateColumns:
-          "260px 1fr 340px",
+        gridTemplateColumns: "260px 1fr 340px",
         overflow: "hidden",
       }}
     >
@@ -100,8 +112,7 @@ export default function Home() {
       <aside
         style={{
           padding: 24,
-          borderRight:
-            "1px solid rgba(255,255,255,.08)",
+          borderRight: "1px solid rgba(255,255,255,.08)",
         }}
       >
         <MissionControl
@@ -112,32 +123,14 @@ export default function Home() {
       </aside>
 
       {/* CENTER PANEL */}
-      <section
-        style={{
-          padding: 24,
-          overflowY: "auto",
-        }}
-      >
-        {/* VIEW TOGGLE */}
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            marginBottom: 20,
-          }}
-        >
+      <section style={{ padding: 24, overflowY: "auto" }}>
+        <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
           <button
             onClick={() => setView("TIMELINE")}
             style={{
               padding: 8,
-              background:
-                view === "TIMELINE"
-                  ? "#00ff88"
-                  : "transparent",
-              color:
-                view === "TIMELINE"
-                  ? "#000"
-                  : "#fff",
+              background: view === "TIMELINE" ? "#00ff88" : "transparent",
+              color: view === "TIMELINE" ? "#000" : "#fff",
               border: "1px solid #333",
             }}
           >
@@ -148,14 +141,8 @@ export default function Home() {
             onClick={() => setView("MAP")}
             style={{
               padding: 8,
-              background:
-                view === "MAP"
-                  ? "#00ff88"
-                  : "transparent",
-              color:
-                view === "MAP"
-                  ? "#000"
-                  : "#fff",
+              background: view === "MAP" ? "#00ff88" : "transparent",
+              color: view === "MAP" ? "#000" : "#fff",
               border: "1px solid #333",
             }}
           >
@@ -174,8 +161,7 @@ export default function Home() {
       <aside
         style={{
           padding: 24,
-          borderLeft:
-            "1px solid rgba(255,255,255,.08)",
+          borderLeft: "1px solid rgba(255,255,255,.08)",
         }}
       >
         <h2>RISK ENGINE</h2>
