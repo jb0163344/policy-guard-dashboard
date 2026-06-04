@@ -1,4 +1,11 @@
-export function evaluateExposure(email: string) {
+export type DarkWebAlert = {
+  severity: string;
+  confidence: number;
+  source: string;
+  exposure: string;
+};
+
+export function evaluateExposure(identifier: string): DarkWebAlert {
   const score = Math.floor(Math.random() * 100);
 
   return {
@@ -10,7 +17,11 @@ export function evaluateExposure(email: string) {
         : score > 20
         ? "MEDIUM"
         : "LOW",
+
     confidence: score,
-    source: "Exposure Intelligence Engine",
+
+    source: "QuantumSec Exposure Intelligence",
+
+    exposure: `Exposure analysis completed for ${identifier}`,
   };
 }
