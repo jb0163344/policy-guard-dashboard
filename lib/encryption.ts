@@ -1,12 +1,9 @@
-import CryptoJS from "crypto-js";
+// lib/encryption.ts
 
-const SECRET = process.env.NEXT_PUBLIC_ENCRYPTION_KEY!;
-
-export function encrypt(data: any) {
-  return CryptoJS.AES.encrypt(JSON.stringify(data), SECRET).toString();
+export function encrypt(data: any): string {
+  return btoa(JSON.stringify(data));
 }
 
-export function decrypt(cipher: string) {
-  const bytes = CryptoJS.AES.decrypt(cipher, SECRET);
-  return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+export function decrypt(cipher: string): any {
+  return JSON.parse(atob(cipher));
 }
