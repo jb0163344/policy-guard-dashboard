@@ -9,7 +9,7 @@ export default function MissionControl({
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <h3>MISSION CONTROL</h3>
 
-      {/* INDUSTRY SELECTOR (RESTORED) */}
+      {/* INDUSTRY */}
       <select
         value={industry}
         onChange={(e) => setIndustry(e.target.value)}
@@ -18,11 +18,12 @@ export default function MissionControl({
         <option value="FINANCE">Finance</option>
         <option value="HEALTH">Health</option>
         <option value="EDUCATION">Education</option>
+        <option value="GOVERNMENT">Government</option>
       </select>
 
       <hr />
 
-      {/* EVENT BUTTONS */}
+      {/* EVENTS */}
       <button onClick={() => addEvent("LOGIN_FAILURE")}>
         Login Failure
       </button>
