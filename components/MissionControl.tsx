@@ -1,5 +1,7 @@
 "use client";
 
+import { EVENT_TYPES } from "../lib/eventTypes";
+
 export default function MissionControl({
   addEvent,
   industry,
@@ -9,7 +11,7 @@ export default function MissionControl({
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <h3>MISSION CONTROL</h3>
 
-      {/* INDUSTRY */}
+      {/* INDUSTRY SELECT */}
       <select
         value={industry}
         onChange={(e) => setIndustry(e.target.value)}
@@ -24,19 +26,19 @@ export default function MissionControl({
       <hr />
 
       {/* EVENTS */}
-      <button onClick={() => addEvent("LOGIN_FAILURE")}>
+      <button onClick={() => addEvent(EVENT_TYPES.LOGIN_FAILURE)}>
         Login Failure
       </button>
 
-      <button onClick={() => addEvent("PASSWORD_REUSE")}>
+      <button onClick={() => addEvent(EVENT_TYPES.PASSWORD_REUSE)}>
         Password Reuse
       </button>
 
-      <button onClick={() => addEvent("MFA_DISABLED")}>
+      <button onClick={() => addEvent(EVENT_TYPES.MFA_DISABLED)}>
         MFA Disabled
       </button>
 
-      <button onClick={() => addEvent("PUBLIC_WIFI")}>
+      <button onClick={() => addEvent(EVENT_TYPES.PUBLIC_WIFI)}>
         Public WiFi
       </button>
     </div>
