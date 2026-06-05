@@ -1,0 +1,8 @@
+export const EVENT_TYPES = {
+  LOGIN_FAILURE: "LOGIN_FAILURE",
+  PASSWORD_REUSE: "PASSWORD_REUSE",
+  MFA_DISABLED: "MFA_DISABLED",
+  PUBLIC_WIFI: "PUBLIC_WIFI",
+} as const;
+
+export type EventType = typeof EVENT_TYPES[keyof typeof EVENT_TYPES];
