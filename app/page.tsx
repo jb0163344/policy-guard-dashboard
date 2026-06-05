@@ -1,63 +1,120 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
+
+import {
+  RiskEvent,
+  IndustryType,
+  calculateRisk,
+  explainThreat,
+  createTimestamp,
+} from "../lib/riskEngine";
+
 import { supabase } from "../lib/supabaseClient";
+
+import RiskCore from "../components/RiskCore";
+import ThreatAnalyst from "../components/ThreatAnalyst";
+import ThreatTimeline from "../components/ThreatTimeline";
 import MissionControl from "../components/MissionControl";
-import { calculateRisk } from "../lib/riskEngine";
+import ThreatMap from "../components/ThreatMap";
 
-import { EventType } from "../lib/eventTypes";
+type ViewMode = "TIMELINE" | "MAP";
 
-type RiskEvent = {
-  type: EventType;
-  timestamp: string;
+type UIAnalysis = {
+  severity: string;
+  impact: string;
+  confidence: string;
+  explanation: string;
 };
 
 export default function Home() {
-  const [industry, setIndustry] = useState("ENTERPRISE");
-  const [events, setEvents] = useState<RiskEvent[]>([]);
+  const [industry, setIndustry] =
+    useState<IndustryType>("ENTERPRISE");
 
-  function createTimestamp() {
-    return new Date().toISOString();
-  }
+  const [view, setView] =
+    useState<ViewMode>("TIMELINE");
+
+  const [events, setEvents] = useState<RiskEvent[]>([
+    {
+      type: "LOGIN_FAILURE",
+      timestamp: createTimestamp(),
+    },
+  ]);
 
   const riskScore = useMemo(() => {
-    return calculateRisk(events as any, industry as any);
+    return calculateRisk(events, industry);
   }, [events, industry]);
 
-  async function addEvent(type: EventType) {
-    const event: RiskEvent = {
+  const latestEvent = events[events.length - 1];
+
+  const raw = explainThreat(latestEvent.type);
+
+  const analysis: UIAnalysis = {
+    severity: `${raw.severity}`,
+    impact: `${raw.impact}`,
+    confidence: `${raw.confidence}`,
+    explanation: `${raw.explanation}`,
+  };
+
+  async function addEvent(type: RiskEvent["type"]) {
+    const newEvent: RiskEvent = {
       type,
       timestamp: createTimestamp(),
     };
 
-    // 1. UI UPDATE (instant)
-    setEvents((prev) => [...prev, event]);
+    const updatedEvents = [...events, newEvent];
+    setEvents(updatedEvents);
 
-    // 2. SUPABASE WRITE (critical pipeline)
+    // 🔥 SUPABASE PERSISTENCE (DAY 4 FIX)
     const { error } = await supabase.from("risk_events").insert({
-      user_id: "demo-user",
-      risk_score: riskScore,
-      answers: {
-        event_type: type,
-      },
+      type: newEvent.type,
+      timestamp: newEvent.timestamp,
+      risk_score: calculateRisk(updatedEvents, industry),
+      industry,
     });
 
     if (error) {
-      console.error("❌ Supabase insert error:", error.message);
-    } else {
-      console.log("✅ Event stored:", type);
+      console.error("Supabase insert error:", error.message);
     }
   }
+
+  const riskColor =
+    riskScore > 80
+      ? "#ff3b3b"
+      : riskScore > 50
+      ? "#ff9d00"
+      : riskScore > 20
+      ? "#ffe600"
+      : "#00ff88";
+
+  const status =
+    riskScore > 80
+      ? "CRITICAL"
+      : riskScore > 50
+      ? "HIGH"
+      : riskScore > 20
+      ? "MEDIUM"
+      : "LOW";
 
   return (
     <main
       style={{
-        display: "grid",
-        gridTemplateColumns: "260px 1fr",
         height: "100vh",
+        background:
+          "radial-gradient(circle at center, #111827 0%, #05070d 70%)",
+        color: "white",
+        display: "grid",
+        gridTemplateColumns: "260px 1fr 340px",
+        overflow: "hidden",
       }}
     >
-      <aside style={{ padding: 20 }}>
+      {/* LEFT PANEL */}
+      <aside
+        style={{
+          padding: 24,
+          borderRight: "1px solid rgba(255,255,255,.08)",
+        }}
+      >
         <MissionControl
           addEvent={addEvent}
           industry={industry}
@@ -65,10 +122,84 @@ export default function Home() {
         />
       </aside>
 
-      <section style={{ padding: 20 }}>
-        <h2>RISK SCORE: {riskScore}</h2>
-        <pre>{JSON.stringify(events, null, 2)}</pre>
+      {/* CENTER PANEL */}
+      <section style={{ padding: 24, overflowY: "auto" }}>
+        <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+          <button
+            onClick={() => setView("TIMELINE")}
+            style={{
+              padding: 8,
+              background: view === "TIMELINE" ? "#00ff88" : "transparent",
+              color: view === "TIMELINE" ? "#000" : "#fff",
+              border: "1px solid #333",
+            }}
+          >
+            Timeline
+          </button>
+
+          <button
+            onClick={() => setView("MAP")}
+            style={{
+              padding: 8,
+              background: view === "MAP" ? "#00ff88" : "transparent",
+              color: view === "MAP" ? "#000" : "#fff",
+              border: "1px solid #333",
+            }}
+          >
+            Map
+          </button>
+        </div>
+
+        {view === "TIMELINE" ? (
+          <ThreatTimeline events={events} />
+        ) : (
+          <ThreatMap events={events} />
+        )}
       </section>
+
+      {/* RIGHT PANEL */}
+      <aside
+        style={{
+          padding: 24,
+          borderLeft: "1px solid rgba(255,255,255,.08)",
+        }}
+      >
+        <h2>RISK ENGINE</h2>
+
+        <div
+          style={{
+            marginTop: 30,
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <RiskCore riskScore={riskScore} />
+        </div>
+
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: 20,
+            fontSize: 28,
+            fontWeight: 700,
+            color: riskColor,
+          }}
+        >
+          {status}
+        </div>
+
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: 10,
+            opacity: 0.7,
+          }}
+        >
+          Industry: {industry}
+        </div>
+
+        <ThreatAnalyst analysis={analysis} />
+      </aside>
     </main>
   );
 }
