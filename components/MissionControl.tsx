@@ -1,101 +1,86 @@
 "use client";
 
-import {
-  RiskEvent,
-  IndustryType,
-} from "../lib/riskEngine";
+import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
 
-type Props = {
-  addEvent: (type: RiskEvent["type"]) => void;
-  industry: IndustryType;
-  setIndustry: (value: IndustryType) => void;
+type RiskEvent = {
+  type: string;
+  timestamp: string;
 };
 
+type IndustryType = "ENTERPRISE" | "FINANCE" | "HEALTH" | "EDUCATION";
+
 export default function MissionControl({
-  addEvent,
+  addEventExternal,
   industry,
   setIndustry,
-}: Props) {
+}: any) {
+  const [events, setEvents] = useState<RiskEvent[]>([]);
+
+  function createTimestamp() {
+    return new Date().toISOString();
+  }
+
+  async function addEvent(type: string) {
+    const newEvent: RiskEvent = {
+      type,
+      timestamp: createTimestamp(),
+    };
+
+    // 1. UI UPDATE (instant feedback)
+    setEvents((prev) => [...prev, newEvent]);
+
+    // 2. DATABASE WRITE (critical fix)
+    const { error } = await supabase.from("risk_events").insert({
+      user_id: "demo-user", // replace later with auth.uid()
+      risk_score: 10,
+      answers: {
+        event_type: type,
+      },
+    });
+
+    if (error) {
+      console.error("❌ Supabase insert failed:", error.message);
+      return;
+    }
+
+    console.log("✅ risk_event inserted:", newEvent);
+
+    // 3. OPTIONAL: notify parent dashboard if you use it
+    if (addEventExternal) {
+      addEventExternal(type);
+    }
+  }
+
   return (
-    <>
-      <h2>MISSION CONTROL</h2>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <h3>MISSION CONTROL</h3>
 
-      <div
-        style={{
-          marginTop: 20,
-          marginBottom: 20,
-        }}
-      >
-        <label>Industry</label>
+      <button onClick={() => addEvent("LOGIN_FAILURE")}>
+        Login Failure
+      </button>
 
-        <select
-          value={industry}
-          onChange={(e) =>
-            setIndustry(
-              e.target.value as IndustryType
-            )
-          }
-        >
-          <option value="LAW_FIRM">
-            Law Firm
-          </option>
+      <button onClick={() => addEvent("PASSWORD_REUSE")}>
+        Password Reuse
+      </button>
 
-          <option value="HEALTHCARE">
-            Healthcare
-          </option>
+      <button onClick={() => addEvent("MFA_DISABLED")}>
+        MFA Disabled
+      </button>
 
-          <option value="GOVERNMENT">
-            Government
-          </option>
+      <button onClick={() => addEvent("PUBLIC_WIFI")}>
+        Public WiFi
+      </button>
 
-          <option value="FINANCE">
-            Finance
-          </option>
+      <hr />
 
-          <option value="ENTERPRISE">
-            Enterprise
-          </option>
-        </select>
+      <div style={{ fontSize: 12, opacity: 0.7 }}>
+        Local Events: {events.length}
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gap: 10,
-        }}
-      >
-        <button
-          onClick={() =>
-            addEvent("LOGIN_FAILURE")
-          }
-        >
-          Failed Login
-        </button>
-
-        <button
-          onClick={() =>
-            addEvent("DEVICE_UNKNOWN")
-          }
-        >
-          Unknown Device
-        </button>
-
-        <button
-          onClick={() =>
-            addEvent("LOCATION_ANOMALY")
-          }
-        >
-          Location Anomaly
-        </button>
-
-        <button
-          onClick={() =>
-            addEvent("IMPOSSIBLE_TRAVEL")
-          }
-        >
-          Impossible Travel
-        </button>
+      <div style={{ fontSize: 12, opacity: 0.5 }}>
+        Industry: {industry}
       </div>
-    </>
+    </div>
   );
 }
