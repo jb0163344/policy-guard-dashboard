@@ -1,86 +1,77 @@
 "use client";
 
-import { useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import {
+  RiskEventType,
+  IndustryType,
+} from "../lib/riskEngine";
 
-type RiskEvent = {
-  type: string;
-  timestamp: string;
+type Props = {
+  addEvent: (type: RiskEventType) => void;
+  industry: IndustryType;
+  setIndustry: (industry: IndustryType) => void;
 };
 
-type IndustryType = "ENTERPRISE" | "FINANCE" | "HEALTH" | "EDUCATION";
-
 export default function MissionControl({
-  addEventExternal,
+  addEvent,
   industry,
   setIndustry,
-}: any) {
-  const [events, setEvents] = useState<RiskEvent[]>([]);
-
-  function createTimestamp() {
-    return new Date().toISOString();
-  }
-
-  async function addEvent(type: string) {
-    const newEvent: RiskEvent = {
-      type,
-      timestamp: createTimestamp(),
-    };
-
-    // 1. UI UPDATE (instant feedback)
-    setEvents((prev) => [...prev, newEvent]);
-
-    // 2. DATABASE WRITE (critical fix)
-    const { error } = await supabase.from("risk_events").insert({
-      user_id: "demo-user", // replace later with auth.uid()
-      risk_score: 10,
-      answers: {
-        event_type: type,
-      },
-    });
-
-    if (error) {
-      console.error("❌ Supabase insert failed:", error.message);
-      return;
-    }
-
-    console.log("✅ risk_event inserted:", newEvent);
-
-    // 3. OPTIONAL: notify parent dashboard if you use it
-    if (addEventExternal) {
-      addEventExternal(type);
-    }
-  }
-
+}: Props) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <h3>MISSION CONTROL</h3>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      <h2>MISSION CONTROL</h2>
 
-      <button onClick={() => addEvent("LOGIN_FAILURE")}>
-        Login Failure
-      </button>
-
-      <button onClick={() => addEvent("PASSWORD_REUSE")}>
-        Password Reuse
-      </button>
-
-      <button onClick={() => addEvent("MFA_DISABLED")}>
-        MFA Disabled
-      </button>
-
-      <button onClick={() => addEvent("PUBLIC_WIFI")}>
-        Public WiFi
-      </button>
+      <select
+        value={industry}
+        onChange={(e) =>
+          setIndustry(e.target.value as IndustryType)
+        }
+      >
+        <option value="ENTERPRISE">Enterprise</option>
+        <option value="FINANCE">Finance</option>
+        <option value="GOVERNMENT">Government</option>
+        <option value="HEALTHCARE">Healthcare</option>
+        <option value="LAW_FIRM">Law Firm</option>
+      </select>
 
       <hr />
 
-      <div style={{ fontSize: 12, opacity: 0.7 }}>
-        Local Events: {events.length}
-      </div>
+      <button
+        onClick={() =>
+          addEvent("LOGIN_FAILURE")
+        }
+      >
+        Login Failure
+      </button>
 
-      <div style={{ fontSize: 12, opacity: 0.5 }}>
-        Industry: {industry}
-      </div>
+      <button
+        onClick={() =>
+          addEvent("DEVICE_UNKNOWN")
+        }
+      >
+        Unknown Device
+      </button>
+
+      <button
+        onClick={() =>
+          addEvent("LOCATION_ANOMALY")
+        }
+      >
+        Location Anomaly
+      </button>
+
+      <button
+        onClick={() =>
+          addEvent("IMPOSSIBLE_TRAVEL")
+        }
+      >
+        Impossible Travel
+      </button>
     </div>
   );
 }
