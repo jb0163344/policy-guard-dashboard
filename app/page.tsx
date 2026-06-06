@@ -57,26 +57,38 @@ export default function Home() {
   };
 
   async function addEvent(type: RiskEvent["type"]) {
-    const newEvent: RiskEvent = {
-      type,
-      timestamp: createTimestamp(),
-    };
+const newEvent: RiskEvent = {
+type,
+timestamp: createTimestamp(),
+};
 
-    const updatedEvents = [...events, newEvent];
-    setEvents(updatedEvents);
+const updatedEvents = [...events, newEvent];
 
-    // 🔥 SUPABASE PERSISTENCE (DAY 4 FIX)
-    const { error } = await supabase.from("risk_events").insert({
-      type: newEvent.type,
-      timestamp: newEvent.timestamp,
-      risk_score: calculateRisk(updatedEvents, industry),
-      industry,
-    });
+// Update UI immediately
+setEvents(updatedEvents);
 
-    if (error) {
-      console.error("Supabase insert error:", error.message);
-    }
-  }
+const payload = {
+type: newEvent.type,
+timestamp: newEvent.timestamp,
+risk_score: calculateRisk(updatedEvents, industry),
+industry,
+};
+
+console.log("🚀 Attempting insert:", payload);
+
+const { data, error } = await supabase
+.from("risk_events")
+.insert(payload)
+.select();
+
+if (error) {
+console.error("❌ Supabase insert error:", error);
+} else {
+console.log("✅ Insert success");
+console.log("📦 Returned row:", data);
+}
+}
+
 
   const riskColor =
     riskScore > 80
