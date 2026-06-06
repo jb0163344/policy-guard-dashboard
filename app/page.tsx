@@ -57,44 +57,64 @@ export default function Home() {
   };
 
 async function addEvent(type: RiskEvent["type"]) {
-try {
-console.log("BUTTON CLICKED:", type);
-
-```
 const newEvent: RiskEvent = {
-  type,
-  timestamp: createTimestamp(),
+type,
+timestamp: createTimestamp(),
 };
 
 const updatedEvents = [...events, newEvent];
 
 setEvents(updatedEvents);
 
-const payload = {
-  type: newEvent.type,
-  timestamp: newEvent.timestamp,
-  risk_score: calculateRisk(updatedEvents, industry),
-  industry,
-};
+const currentRiskScore = calculateRisk(
+updatedEvents,
+industry
+);
 
-console.log("INSERT PAYLOAD:", payload);
+// Save Risk Event
+const { error: eventError } = await supabase
+.from("risk_events")
+.insert([
+{
+type: newEvent.type,
+timestamp: newEvent.timestamp,
+risk_score: currentRiskScore,
+industry: industry,
+},
+]);
 
-const result = await supabase
-  .from("risk_events")
-  .insert(payload)
-  .select();
-
-console.log("FULL RESULT:", result);
-
-if (result.error) {
-  console.error("SUPABASE ERROR:", result.error);
+if (eventError) {
+console.error(
+"Risk Event Insert Error:",
+eventError
+);
 } else {
-  console.log("SUCCESS:", result.data);
+console.log(
+"Risk Event Saved:",
+newEvent.type
+);
 }
-```
 
-} catch (err) {
-console.error("UNCAUGHT ERROR:", err);
+// Optional Risk Score History
+const { error: scoreError } = await supabase
+.from("risk_scores")
+.insert([
+{
+score: currentRiskScore,
+industry: industry,
+},
+]);
+
+if (scoreError) {
+console.error(
+"Risk Score Insert Error:",
+scoreError
+);
+} else {
+console.log(
+"Risk Score Saved:",
+currentRiskScore
+);
 }
 }
 
