@@ -46,78 +46,50 @@ export default function Home() {
   }, [events, industry]);
 
   const latestEvent = events[events.length - 1];
-
   const raw = explainThreat(latestEvent.type);
 
   const analysis: UIAnalysis = {
-    severity: `${raw.severity}`,
-    impact: `${raw.impact}`,
-    confidence: `${raw.confidence}`,
-    explanation: `${raw.explanation}`,
+    severity: raw.severity,
+    impact: String(raw.impact),
+    confidence: raw.confidence,
+    explanation: raw.explanation,
   };
 
-async function addEvent(type: RiskEvent["type"]) {
-const newEvent: RiskEvent = {
-type,
-timestamp: createTimestamp(),
-};
+  async function addEvent(type: RiskEvent["type"]) {
+    const newEvent: RiskEvent = {
+      type,
+      timestamp: createTimestamp(),
+    };
 
-const updatedEvents = [...events, newEvent];
+    const updatedEvents = [...events, newEvent];
+    setEvents(updatedEvents);
 
-setEvents(updatedEvents);
+    const currentRiskScore = calculateRisk(
+      updatedEvents,
+      industry
+    );
 
-const currentRiskScore = calculateRisk(
-updatedEvents,
-industry
-);
+    const payload = {
+      type: newEvent.type,
+      timestamp: newEvent.timestamp,
+      risk_score: currentRiskScore,
+      industry,
+    };
 
-// Save Risk Event
-const { error: eventError } = await supabase
-.from("risk_events")
-.insert([
-{
-type: newEvent.type,
-timestamp: newEvent.timestamp,
-risk_score: currentRiskScore,
-industry: industry,
-},
-]);
+    console.log("INSERT EVENT:", payload);
 
-if (eventError) {
-console.error(
-"Risk Event Insert Error:",
-eventError
-);
-} else {
-console.log(
-"Risk Event Saved:",
-newEvent.type
-);
-}
+    const { data, error } = await supabase
+      .from("risk_events")
+      .insert(payload)
+      .select();
 
-// Optional Risk Score History
-const { error: scoreError } = await supabase
-.from("risk_scores")
-.insert([
-{
-score: currentRiskScore,
-industry: industry,
-},
-]);
+    if (error) {
+      console.error("SUPABASE ERROR:", error);
+      return;
+    }
 
-if (scoreError) {
-console.error(
-"Risk Score Insert Error:",
-scoreError
-);
-} else {
-console.log(
-"Risk Score Saved:",
-currentRiskScore
-);
-}
-}
-
+    console.log("EVENT SAVED:", data);
+  }
 
   const riskColor =
     riskScore > 80
@@ -149,7 +121,7 @@ currentRiskScore
         overflow: "hidden",
       }}
     >
-      {/* LEFT PANEL */}
+      {/* LEFT */}
       <aside
         style={{
           padding: 24,
@@ -163,14 +135,15 @@ currentRiskScore
         />
       </aside>
 
-      {/* CENTER PANEL */}
+      {/* CENTER */}
       <section style={{ padding: 24, overflowY: "auto" }}>
         <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
           <button
             onClick={() => setView("TIMELINE")}
             style={{
               padding: 8,
-              background: view === "TIMELINE" ? "#00ff88" : "transparent",
+              background:
+                view === "TIMELINE" ? "#00ff88" : "transparent",
               color: view === "TIMELINE" ? "#000" : "#fff",
               border: "1px solid #333",
             }}
@@ -182,7 +155,8 @@ currentRiskScore
             onClick={() => setView("MAP")}
             style={{
               padding: 8,
-              background: view === "MAP" ? "#00ff88" : "transparent",
+              background:
+                view === "MAP" ? "#00ff88" : "transparent",
               color: view === "MAP" ? "#000" : "#fff",
               border: "1px solid #333",
             }}
@@ -198,7 +172,7 @@ currentRiskScore
         )}
       </section>
 
-      {/* RIGHT PANEL */}
+      {/* RIGHT */}
       <aside
         style={{
           padding: 24,
