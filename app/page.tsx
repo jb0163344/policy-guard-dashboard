@@ -20,13 +20,6 @@ import ThreatMap from "../components/ThreatMap";
 
 type ViewMode = "TIMELINE" | "MAP";
 
-type UIAnalysis = {
-  severity: string;
-  impact: string;
-  confidence: string;
-  explanation: string;
-};
-
 export default function Home() {
   const [industry, setIndustry] =
     useState<IndustryType>("ENTERPRISE");
@@ -48,7 +41,7 @@ export default function Home() {
   const latestEvent = events[events.length - 1];
   const raw = explainThreat(latestEvent.type);
 
-  const analysis: UIAnalysis = {
+  const analysis = {
     severity: raw.severity,
     impact: String(raw.impact),
     confidence: raw.confidence,
@@ -56,6 +49,8 @@ export default function Home() {
   };
 
   async function addEvent(type: RiskEvent["type"]) {
+    console.log("CLICKED EVENT:", type);
+
     const newEvent: RiskEvent = {
       type,
       timestamp: createTimestamp(),
@@ -76,7 +71,7 @@ export default function Home() {
       industry,
     };
 
-    console.log("INSERT EVENT:", payload);
+    console.log("INSERT PAYLOAD:", payload);
 
     const { data, error } = await supabase
       .from("risk_events")
@@ -84,11 +79,11 @@ export default function Home() {
       .select();
 
     if (error) {
-      console.error("SUPABASE ERROR:", error);
+      console.error("SUPABASE INSERT ERROR:", error);
       return;
     }
 
-    console.log("EVENT SAVED:", data);
+    console.log("INSERT SUCCESS:", data);
   }
 
   const riskColor =
