@@ -16,6 +16,11 @@ export default function MissionControl({
   industry,
   setIndustry,
 }: Props) {
+  function handleClick(type: RiskEventType) {
+    console.log("MISSION CONTROL CLICK:", type);
+    addEvent(type);
+  }
+
   return (
     <div
       style={{
@@ -41,35 +46,19 @@ export default function MissionControl({
 
       <hr />
 
-      <button
-        onClick={() =>
-          addEvent("LOGIN_FAILURE")
-        }
-      >
+      <button onClick={() => handleClick("LOGIN_FAILURE")}>
         Login Failure
       </button>
 
-      <button
-        onClick={() =>
-          addEvent("DEVICE_UNKNOWN")
-        }
-      >
+      <button onClick={() => handleClick("DEVICE_UNKNOWN")}>
         Unknown Device
       </button>
 
-      <button
-        onClick={() =>
-          addEvent("LOCATION_ANOMALY")
-        }
-      >
+      <button onClick={() => handleClick("LOCATION_ANOMALY")}>
         Location Anomaly
       </button>
 
-      <button
-        onClick={() =>
-          addEvent("IMPOSSIBLE_TRAVEL")
-        }
-      >
+      <button onClick={() => handleClick("IMPOSSIBLE_TRAVEL")}>
         Impossible Travel
       </button>
     </div>
