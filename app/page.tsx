@@ -49,7 +49,7 @@ export default function Home() {
   };
 
   async function addEvent(type: RiskEvent["type"]) {
-    console.log("CLICKED EVENT:", type);
+    console.log("ADD EVENT FIRED:", type);
 
     const newEvent: RiskEvent = {
       type,
@@ -64,26 +64,24 @@ export default function Home() {
       industry
     );
 
-    const payload = {
-      type: newEvent.type,
-      timestamp: newEvent.timestamp,
-      risk_score: currentRiskScore,
-      industry,
-    };
-
-    console.log("INSERT PAYLOAD:", payload);
-
     const { data, error } = await supabase
       .from("risk_events")
-      .insert(payload)
+      .insert([
+        {
+          type: newEvent.type,
+          timestamp: newEvent.timestamp,
+          risk_score: currentRiskScore,
+          industry,
+        },
+      ])
       .select();
 
     if (error) {
-      console.error("SUPABASE INSERT ERROR:", error);
+      console.error("SUPABASE ERROR:", error);
       return;
     }
 
-    console.log("INSERT SUCCESS:", data);
+    console.log("SAVED:", data);
   }
 
   const riskColor =
@@ -131,31 +129,13 @@ export default function Home() {
       </aside>
 
       {/* CENTER */}
-      <section style={{ padding: 24, overflowY: "auto" }}>
-        <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-          <button
-            onClick={() => setView("TIMELINE")}
-            style={{
-              padding: 8,
-              background:
-                view === "TIMELINE" ? "#00ff88" : "transparent",
-              color: view === "TIMELINE" ? "#000" : "#fff",
-              border: "1px solid #333",
-            }}
-          >
+      <section style={{ padding: 24 }}>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => setView("TIMELINE")}>
             Timeline
           </button>
 
-          <button
-            onClick={() => setView("MAP")}
-            style={{
-              padding: 8,
-              background:
-                view === "MAP" ? "#00ff88" : "transparent",
-              color: view === "MAP" ? "#000" : "#fff",
-              border: "1px solid #333",
-            }}
-          >
+          <button onClick={() => setView("MAP")}>
             Map
           </button>
         </div>
@@ -168,44 +148,13 @@ export default function Home() {
       </section>
 
       {/* RIGHT */}
-      <aside
-        style={{
-          padding: 24,
-          borderLeft: "1px solid rgba(255,255,255,.08)",
-        }}
-      >
+      <aside style={{ padding: 24 }}>
         <h2>RISK ENGINE</h2>
 
-        <div
-          style={{
-            marginTop: 30,
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
-          <RiskCore riskScore={riskScore} />
-        </div>
+        <RiskCore riskScore={riskScore} />
 
-        <div
-          style={{
-            textAlign: "center",
-            marginTop: 20,
-            fontSize: 28,
-            fontWeight: 700,
-            color: riskColor,
-          }}
-        >
+        <div style={{ color: riskColor, fontSize: 24 }}>
           {status}
-        </div>
-
-        <div
-          style={{
-            textAlign: "center",
-            marginTop: 10,
-            opacity: 0.7,
-          }}
-        >
-          Industry: {industry}
         </div>
 
         <ThreatAnalyst analysis={analysis} />
