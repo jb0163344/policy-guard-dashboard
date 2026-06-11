@@ -38,8 +38,17 @@ export default function Home() {
     return calculateRisk(events, industry);
   }, [events, industry]);
 
-  const latestEvent = events[events.length - 1];
-  const raw = explainThreat(latestEvent.type);
+  // ✅ SAFE GUARD (prevents crash when events is empty)
+  const latestEvent = events.length > 0 ? events[events.length - 1] : null;
+
+  const raw = latestEvent
+    ? explainThreat(latestEvent.type)
+    : {
+        severity: "LOW",
+        impact: "0",
+        confidence: "0%",
+        explanation: "No events yet.",
+      };
 
   const analysis = {
     severity: raw.severity,
@@ -64,24 +73,23 @@ export default function Home() {
       industry
     );
 
+    const payload = {
+      type: newEvent.type,
+      timestamp: newEvent.timestamp,
+      risk_score: currentRiskScore,
+      industry,
+    };
+
     const { data, error } = await supabase
       .from("risk_events")
-      .insert([
-        {
-          type: newEvent.type,
-          timestamp: newEvent.timestamp,
-          risk_score: currentRiskScore,
-          industry,
-        },
-      ])
+      .insert([payload])
       .select();
 
     if (error) {
-      console.error("SUPABASE ERROR:", error);
-      return;
+      console.error("SUPABASE INSERT ERROR:", error);
+    } else {
+      console.log("SAVED EVENT:", data);
     }
-
-    console.log("SAVED:", data);
   }
 
   const riskColor =
@@ -129,8 +137,8 @@ export default function Home() {
       </aside>
 
       {/* CENTER */}
-      <section style={{ padding: 24 }}>
-        <div style={{ display: "flex", gap: 10 }}>
+      <section style={{ padding: 24, overflowY: "auto" }}>
+        <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
           <button onClick={() => setView("TIMELINE")}>
             Timeline
           </button>
@@ -153,7 +161,13 @@ export default function Home() {
 
         <RiskCore riskScore={riskScore} />
 
-        <div style={{ color: riskColor, fontSize: 24 }}>
+        <div
+          style={{
+            color: riskColor,
+            fontSize: 24,
+            marginTop: 10,
+          }}
+        >
           {status}
         </div>
 
