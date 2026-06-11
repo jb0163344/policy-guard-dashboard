@@ -27,10 +27,11 @@ export default function Home() {
   const [view, setView] =
     useState<ViewMode>("TIMELINE");
 
+  // ✅ SINGLE SOURCE OF TRUTH
   const [events, setEvents] = useState<RiskEvent[]>([]);
 
   // =========================
-  // LOAD INITIAL DATA
+  // LOAD FROM SUPABASE (ONCE)
   // =========================
   useEffect(() => {
     loadEvents();
@@ -39,8 +40,8 @@ export default function Home() {
   async function loadEvents() {
     const { data, error } = await supabase
       .from("risk_events")
-      .select("*")
-      .order("timestamp", { ascending: true });
+      .select("type, timestamp")
+      .order("created_at", { ascending: true });
 
     if (error) {
       console.error("LOAD ERROR:", error);
@@ -49,12 +50,12 @@ export default function Home() {
 
     if (!data) return;
 
-    const formatted: RiskEvent[] = data.map((row) => ({
-      type: row.type,
-      timestamp: row.timestamp,
-    }));
-
-    setEvents(formatted);
+    setEvents(
+      data.map((row) => ({
+        type: row.type,
+        timestamp: row.timestamp,
+      }))
+    );
   }
 
   // =========================
@@ -62,7 +63,7 @@ export default function Home() {
   // =========================
   useEffect(() => {
     const channel = supabase
-      .channel("risk-events-realtime")
+      .channel("risk-events-live")
       .on(
         "postgres_changes",
         {
@@ -71,19 +72,19 @@ export default function Home() {
           table: "risk_events",
         },
         (payload) => {
-          const newRow = payload.new;
+          const row = payload.new;
 
           const newEvent: RiskEvent = {
-            type: newRow.type,
-            timestamp: newRow.timestamp,
+            type: row.type,
+            timestamp: row.timestamp,
           };
 
           setEvents((prev) => {
             // prevent duplicates
             const exists = prev.some(
               (e) =>
-                e.timestamp === newRow.timestamp &&
-                e.type === newRow.type
+                e.type === newEvent.type &&
+                e.timestamp === newEvent.timestamp
             );
 
             if (exists) return prev;
@@ -100,7 +101,7 @@ export default function Home() {
   }, []);
 
   // =========================
-  // RISK ENGINE
+  // RISK CALCULATION
   // =========================
   const riskScore = useMemo(() => {
     return calculateRisk(events, industry);
@@ -126,28 +127,15 @@ export default function Home() {
   };
 
   // =========================
-  // ADD EVENT (INSERT ONLY)
+  // ADD EVENT (NO LOCAL STATE UPDATE)
   // =========================
   async function addEvent(type: RiskEvent["type"]) {
     console.log("ADD EVENT:", type);
 
-    const newEvent: RiskEvent = {
+    const payload = {
       type,
       timestamp: createTimestamp(),
-    };
-
-    const updatedEvents = [...events, newEvent];
-    setEvents(updatedEvents);
-
-    const currentRiskScore = calculateRisk(
-      updatedEvents,
-      industry
-    );
-
-    const payload = {
-      type: newEvent.type,
-      timestamp: newEvent.timestamp,
-      risk_score: currentRiskScore,
+      risk_score: calculateRisk(events, industry),
       industry,
     };
 
@@ -156,12 +144,12 @@ export default function Home() {
       .insert([payload]);
 
     if (error) {
-      console.error("SUPABASE INSERT ERROR:", error);
+      console.error("INSERT ERROR:", error);
     }
   }
 
   // =========================
-  // UI LOGIC
+  // UI
   // =========================
   const riskColor =
     riskScore > 80
@@ -181,9 +169,6 @@ export default function Home() {
       ? "MEDIUM"
       : "LOW";
 
-  // =========================
-  // RENDER
-  // =========================
   return (
     <main
       style={{
