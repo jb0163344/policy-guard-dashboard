@@ -58,26 +58,38 @@ export default function Home() {
   };
 
   async function addEvent(type: RiskEvent["type"]) {
-  alert(`Button clicked: ${type}`);
+  console.log("ADD EVENT FIRED:", type);
+
+  const newEvent: RiskEvent = {
+    type,
+    timestamp: createTimestamp(),
+  };
+
+  const updatedEvents = [...events, newEvent];
+  setEvents(updatedEvents);
+
+  const currentRiskScore = calculateRisk(
+    updatedEvents,
+    industry
+  );
+
+  const payload = {
+    type: newEvent.type,
+    timestamp: newEvent.timestamp,
+    risk_score: currentRiskScore,
+    industry,
+  };
 
   const { data, error } = await supabase
     .from("risk_events")
-    .insert([
-      {
-        type: "LOGIN_FAILURE",
-        timestamp: "TEST",
-        risk_score: 99,
-        industry: "ENTERPRISE",
-      },
-    ])
+    .insert([payload])
     .select();
 
-  alert(
-    JSON.stringify({
-      data,
-      error,
-    })
-  );
+  if (error) {
+    console.error("SUPABASE INSERT ERROR:", error);
+  } else {
+    console.log("SAVED EVENT:", data);
+  }
 }
 
   const riskColor =
