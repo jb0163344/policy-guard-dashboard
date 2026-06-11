@@ -48,10 +48,14 @@ export default function MissionControl({
 
       <hr />
 
-      <button onClick={() => handleClick("LOGIN_FAILURE")}>
-        Login Failure
-      </button>
-
+     <button
+  onClick={() => {
+    alert("BUTTON WORKS");
+    addEvent("LOGIN_FAILURE");
+  }}
+>
+  Login Failure
+</button>
       <button onClick={() => handleClick("DEVICE_UNKNOWN")}>
         Unknown Device
       </button>
