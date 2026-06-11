@@ -16,6 +16,8 @@ export default function MissionControl({
   industry,
   setIndustry,
 }: Props) {
+  console.log("MISSION CONTROL LOADED");
+
   function handleClick(type: RiskEventType) {
     console.log("MISSION CONTROL CLICK:", type);
     addEvent(type);
