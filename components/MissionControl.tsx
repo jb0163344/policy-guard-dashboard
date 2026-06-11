@@ -16,26 +16,13 @@ export default function MissionControl({
   industry,
   setIndustry,
 }: Props) {
-  function handleClick(type: RiskEventType) {
-    console.log("MISSION CONTROL CLICK:", type);
-    addEvent(type);
-  }
-
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-      }}
-    >
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <h2>MISSION CONTROL</h2>
 
       <select
         value={industry}
-        onChange={(e) =>
-          setIndustry(e.target.value as IndustryType)
-        }
+        onChange={(e) => setIndustry(e.target.value as IndustryType)}
       >
         <option value="ENTERPRISE">Enterprise</option>
         <option value="FINANCE">Finance</option>
@@ -46,19 +33,43 @@ export default function MissionControl({
 
       <hr />
 
-      <button onClick={() => handleClick("LOGIN_FAILURE")}>
+      <button
+        style={{ padding: 10, background: "red", color: "white" }}
+        onClick={() => {
+          console.log("CLICK LOGIN FAILURE");
+          addEvent("LOGIN_FAILURE");
+        }}
+      >
         Login Failure
       </button>
 
-      <button onClick={() => handleClick("DEVICE_UNKNOWN")}>
+      <button
+        style={{ padding: 10 }}
+        onClick={() => {
+          console.log("CLICK DEVICE UNKNOWN");
+          addEvent("DEVICE_UNKNOWN");
+        }}
+      >
         Unknown Device
       </button>
 
-      <button onClick={() => handleClick("LOCATION_ANOMALY")}>
+      <button
+        style={{ padding: 10 }}
+        onClick={() => {
+          console.log("CLICK LOCATION ANOMALY");
+          addEvent("LOCATION_ANOMALY");
+        }}
+      >
         Location Anomaly
       </button>
 
-      <button onClick={() => handleClick("IMPOSSIBLE_TRAVEL")}>
+      <button
+        style={{ padding: 10 }}
+        onClick={() => {
+          console.log("CLICK IMPOSSIBLE TRAVEL");
+          addEvent("IMPOSSIBLE_TRAVEL");
+        }}
+      >
         Impossible Travel
       </button>
     </div>
