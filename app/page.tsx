@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   RiskEvent,
@@ -27,19 +27,41 @@ export default function Home() {
   const [view, setView] =
     useState<ViewMode>("TIMELINE");
 
-  const [events, setEvents] = useState<RiskEvent[]>([
-    {
-      type: "LOGIN_FAILURE",
-      timestamp: createTimestamp(),
-    },
-  ]);
+  // ✅ FIX: start empty (important for Supabase load)
+  const [events, setEvents] = useState<RiskEvent[]>([]);
+
+  // ✅ LOAD EVENTS FROM SUPABASE
+  useEffect(() => {
+    loadEvents();
+  }, []);
+
+  async function loadEvents() {
+    const { data, error } = await supabase
+      .from("risk_events")
+      .select("*")
+      .order("timestamp", { ascending: true });
+
+    if (error) {
+      console.error("LOAD ERROR:", error);
+      return;
+    }
+
+    if (!data) return;
+
+    const formatted: RiskEvent[] = data.map((row) => ({
+      type: row.type,
+      timestamp: row.timestamp,
+    }));
+
+    setEvents(formatted);
+  }
 
   const riskScore = useMemo(() => {
     return calculateRisk(events, industry);
   }, [events, industry]);
 
-  // ✅ SAFE GUARD (prevents crash when events is empty)
-  const latestEvent = events.length > 0 ? events[events.length - 1] : null;
+  const latestEvent =
+    events.length > 0 ? events[events.length - 1] : null;
 
   const raw = latestEvent
     ? explainThreat(latestEvent.type)
@@ -58,39 +80,39 @@ export default function Home() {
   };
 
   async function addEvent(type: RiskEvent["type"]) {
-  console.log("ADD EVENT FIRED:", type);
+    console.log("ADD EVENT FIRED:", type);
 
-  const newEvent: RiskEvent = {
-    type,
-    timestamp: createTimestamp(),
-  };
+    const newEvent: RiskEvent = {
+      type,
+      timestamp: createTimestamp(),
+    };
 
-  const updatedEvents = [...events, newEvent];
-  setEvents(updatedEvents);
+    const updatedEvents = [...events, newEvent];
+    setEvents(updatedEvents);
 
-  const currentRiskScore = calculateRisk(
-    updatedEvents,
-    industry
-  );
+    const currentRiskScore = calculateRisk(
+      updatedEvents,
+      industry
+    );
 
-  const payload = {
-    type: newEvent.type,
-    timestamp: newEvent.timestamp,
-    risk_score: currentRiskScore,
-    industry,
-  };
+    const payload = {
+      type: newEvent.type,
+      timestamp: newEvent.timestamp,
+      risk_score: currentRiskScore,
+      industry,
+    };
 
-  const { data, error } = await supabase
-    .from("risk_events")
-    .insert([payload])
-    .select();
+    const { data, error } = await supabase
+      .from("risk_events")
+      .insert([payload])
+      .select();
 
-  if (error) {
-    console.error("SUPABASE INSERT ERROR:", error);
-  } else {
-    console.log("SAVED EVENT:", data);
+    if (error) {
+      console.error("SUPABASE INSERT ERROR:", error);
+    } else {
+      console.log("SAVED EVENT:", data);
+    }
   }
-}
 
   const riskColor =
     riskScore > 80
