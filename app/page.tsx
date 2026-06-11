@@ -38,8 +38,9 @@ export default function Home() {
     return calculateRisk(events, industry);
   }, [events, industry]);
 
-  // ✅ SAFE GUARD (prevents crash when events is empty)
-  const latestEvent = events.length > 0 ? events[events.length - 1] : null;
+  const latestEvent = events.length
+    ? events[events.length - 1]
+    : null;
 
   const raw = latestEvent
     ? explainThreat(latestEvent.type)
@@ -58,15 +59,16 @@ export default function Home() {
   };
 
   async function addEvent(type: RiskEvent["type"]) {
-    console.log("ADD EVENT FIRED:", type);
+    console.log("CLICKED EVENT:", type);
+
+    const timestamp = createTimestamp();
 
     const newEvent: RiskEvent = {
       type,
-      timestamp: createTimestamp(),
+      timestamp,
     };
 
     const updatedEvents = [...events, newEvent];
-    setEvents(updatedEvents);
 
     const currentRiskScore = calculateRisk(
       updatedEvents,
@@ -75,21 +77,27 @@ export default function Home() {
 
     const payload = {
       type: newEvent.type,
-      timestamp: newEvent.timestamp,
+      timestamp: new Date().toISOString(),
       risk_score: currentRiskScore,
       industry,
     };
+
+    console.log("INSERT PAYLOAD:", payload);
 
     const { data, error } = await supabase
       .from("risk_events")
       .insert([payload])
       .select();
 
+    console.log("SUPABASE RESPONSE:", { data, error });
+
     if (error) {
-      console.error("SUPABASE INSERT ERROR:", error);
-    } else {
-      console.log("SAVED EVENT:", data);
+      console.error("INSERT ERROR:", error.message);
+      return;
     }
+
+    // Only update UI if DB insert succeeds
+    setEvents(updatedEvents);
   }
 
   const riskColor =
