@@ -27,10 +27,11 @@ export default function Home() {
   const [view, setView] =
     useState<ViewMode>("TIMELINE");
 
-  // ✅ FIX: start empty (important for Supabase load)
   const [events, setEvents] = useState<RiskEvent[]>([]);
 
-  // ✅ LOAD EVENTS FROM SUPABASE
+  // =========================
+  // LOAD INITIAL DATA
+  // =========================
   useEffect(() => {
     loadEvents();
   }, []);
@@ -56,6 +57,51 @@ export default function Home() {
     setEvents(formatted);
   }
 
+  // =========================
+  // REALTIME SUBSCRIPTION
+  // =========================
+  useEffect(() => {
+    const channel = supabase
+      .channel("risk-events-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "risk_events",
+        },
+        (payload) => {
+          const newRow = payload.new;
+
+          const newEvent: RiskEvent = {
+            type: newRow.type,
+            timestamp: newRow.timestamp,
+          };
+
+          setEvents((prev) => {
+            // prevent duplicates
+            const exists = prev.some(
+              (e) =>
+                e.timestamp === newRow.timestamp &&
+                e.type === newRow.type
+            );
+
+            if (exists) return prev;
+
+            return [...prev, newEvent];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // =========================
+  // RISK ENGINE
+  // =========================
   const riskScore = useMemo(() => {
     return calculateRisk(events, industry);
   }, [events, industry]);
@@ -79,8 +125,11 @@ export default function Home() {
     explanation: raw.explanation,
   };
 
+  // =========================
+  // ADD EVENT (INSERT ONLY)
+  // =========================
   async function addEvent(type: RiskEvent["type"]) {
-    console.log("ADD EVENT FIRED:", type);
+    console.log("ADD EVENT:", type);
 
     const newEvent: RiskEvent = {
       type,
@@ -102,18 +151,18 @@ export default function Home() {
       industry,
     };
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("risk_events")
-      .insert([payload])
-      .select();
+      .insert([payload]);
 
     if (error) {
       console.error("SUPABASE INSERT ERROR:", error);
-    } else {
-      console.log("SAVED EVENT:", data);
     }
   }
 
+  // =========================
+  // UI LOGIC
+  // =========================
   const riskColor =
     riskScore > 80
       ? "#ff3b3b"
@@ -132,6 +181,9 @@ export default function Home() {
       ? "MEDIUM"
       : "LOW";
 
+  // =========================
+  // RENDER
+  // =========================
   return (
     <main
       style={{
