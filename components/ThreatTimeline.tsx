@@ -6,14 +6,27 @@ type Props = {
   events: RiskEvent[];
 };
 
-export default function ThreatTimeline({
-  events,
-}: Props) {
+export default function ThreatTimeline({ events }: Props) {
+  // SAFE GUARD (prevents crashes if events is undefined/null)
+  const safeEvents = events ?? [];
+
+  // EMPTY STATE (prevents blank UI confusion)
+  if (safeEvents.length === 0) {
+    return (
+      <div>
+        <h1>Threat Intelligence Timeline</h1>
+        <p style={{ opacity: 0.6, marginTop: 10 }}>
+          No events yet. Trigger an action from Mission Control.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <>
       <h1>Threat Intelligence Timeline</h1>
 
-      {events.map((event, index) => {
+      {safeEvents.map((event, index) => {
         const insight = getEventInsight(event.type);
 
         return (
@@ -23,10 +36,8 @@ export default function ThreatTimeline({
                 marginTop: 20,
                 padding: 16,
                 borderRadius: 12,
-                background:
-                  "rgba(255,255,255,.04)",
-                border:
-                  "1px solid rgba(255,255,255,.08)",
+                background: "rgba(255,255,255,.04)",
+                border: "1px solid rgba(255,255,255,.08)",
               }}
             >
               <div
@@ -69,7 +80,7 @@ export default function ThreatTimeline({
               </div>
             </div>
 
-            {index !== events.length - 1 && (
+            {index !== safeEvents.length - 1 && (
               <div
                 style={{
                   textAlign: "center",
