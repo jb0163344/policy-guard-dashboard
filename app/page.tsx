@@ -27,11 +27,10 @@ export default function Home() {
   const [view, setView] =
     useState<ViewMode>("TIMELINE");
 
-  // ✅ SINGLE SOURCE OF TRUTH
   const [events, setEvents] = useState<RiskEvent[]>([]);
 
   // =========================
-  // LOAD FROM SUPABASE (ONCE)
+  // LOAD EVENTS FROM SUPABASE
   // =========================
   useEffect(() => {
     loadEvents();
@@ -41,7 +40,7 @@ export default function Home() {
     const { data, error } = await supabase
       .from("risk_events")
       .select("type, timestamp")
-      .order("created_at", { ascending: true });
+      .order("timestamp", { ascending: true });
 
     if (error) {
       console.error("LOAD ERROR:", error);
@@ -59,7 +58,7 @@ export default function Home() {
   }
 
   // =========================
-  // REALTIME SUBSCRIPTION
+  // REALTIME SYNC
   // =========================
   useEffect(() => {
     const channel = supabase
@@ -80,7 +79,6 @@ export default function Home() {
           };
 
           setEvents((prev) => {
-            // prevent duplicates
             const exists = prev.some(
               (e) =>
                 e.type === newEvent.type &&
@@ -101,7 +99,7 @@ export default function Home() {
   }, []);
 
   // =========================
-  // RISK CALCULATION
+  // RISK ENGINE
   // =========================
   const riskScore = useMemo(() => {
     return calculateRisk(events, industry);
@@ -127,10 +125,10 @@ export default function Home() {
   };
 
   // =========================
-  // ADD EVENT (NO LOCAL STATE UPDATE)
+  // ADD EVENT (FIXED)
   // =========================
   async function addEvent(type: RiskEvent["type"]) {
-    console.log("ADD EVENT:", type);
+    console.log("CLICK:", type);
 
     const payload = {
       type,
@@ -145,11 +143,17 @@ export default function Home() {
 
     if (error) {
       console.error("INSERT ERROR:", error);
+      return;
     }
+
+    console.log("INSERT SUCCESS");
+
+    // optional safety reload (keeps UI consistent)
+    await loadEvents();
   }
 
   // =========================
-  // UI
+  // UI STATUS
   // =========================
   const riskColor =
     riskScore > 80
