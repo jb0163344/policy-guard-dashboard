@@ -149,7 +149,6 @@ export default function Home() {
     console.log("INSERT SUCCESS");
 
     // optional safety reload (keeps UI consistent)
-    await loadEvents();
   }
 
   // =========================
