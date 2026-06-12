@@ -16,13 +16,28 @@ export default function MissionControl({
   industry,
   setIndustry,
 }: Props) {
+  const buttonStyle = {
+    padding: 10,
+    border: "1px solid #333",
+    borderRadius: 8,
+    cursor: "pointer",
+  };
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
       <h2>MISSION CONTROL</h2>
 
       <select
         value={industry}
-        onChange={(e) => setIndustry(e.target.value as IndustryType)}
+        onChange={(e) =>
+          setIndustry(e.target.value as IndustryType)
+        }
       >
         <option value="ENTERPRISE">Enterprise</option>
         <option value="FINANCE">Finance</option>
@@ -34,7 +49,7 @@ export default function MissionControl({
       <hr />
 
       <button
-        style={{ padding: 10, background: "red", color: "white" }}
+        style={buttonStyle}
         onClick={() => {
           console.log("CLICK LOGIN FAILURE");
           addEvent("LOGIN_FAILURE");
@@ -44,7 +59,7 @@ export default function MissionControl({
       </button>
 
       <button
-        style={{ padding: 10 }}
+        style={buttonStyle}
         onClick={() => {
           console.log("CLICK DEVICE UNKNOWN");
           addEvent("DEVICE_UNKNOWN");
@@ -54,7 +69,7 @@ export default function MissionControl({
       </button>
 
       <button
-        style={{ padding: 10 }}
+        style={buttonStyle}
         onClick={() => {
           console.log("CLICK LOCATION ANOMALY");
           addEvent("LOCATION_ANOMALY");
@@ -64,7 +79,7 @@ export default function MissionControl({
       </button>
 
       <button
-        style={{ padding: 10 }}
+        style={buttonStyle}
         onClick={() => {
           console.log("CLICK IMPOSSIBLE TRAVEL");
           addEvent("IMPOSSIBLE_TRAVEL");
