@@ -30,7 +30,7 @@ export default function Home() {
   const [events, setEvents] = useState<RiskEvent[]>([]);
 
   // =========================
-  // LOAD EVENTS FROM SUPABASE
+  // LOAD EVENTS (SOURCE OF TRUTH)
   // =========================
   useEffect(() => {
     loadEvents();
@@ -47,18 +47,11 @@ export default function Home() {
       return;
     }
 
-    if (!data) return;
-
-    setEvents(
-      data.map((row) => ({
-        type: row.type,
-        timestamp: row.timestamp,
-      }))
-    );
+    setEvents((data || []) as RiskEvent[]);
   }
 
   // =========================
-  // REALTIME SYNC
+  // REALTIME (SAFE, NO DUPLICATES)
   // =========================
   useEffect(() => {
     const channel = supabase
@@ -71,23 +64,18 @@ export default function Home() {
           table: "risk_events",
         },
         (payload) => {
-          const row = payload.new;
-
-          const newEvent: RiskEvent = {
-            type: row.type,
-            timestamp: row.timestamp,
-          };
+          const row = payload.new as RiskEvent;
 
           setEvents((prev) => {
             const exists = prev.some(
               (e) =>
-                e.type === newEvent.type &&
-                e.timestamp === newEvent.timestamp
+                e.type === row.type &&
+                e.timestamp === row.timestamp
             );
 
             if (exists) return prev;
 
-            return [...prev, newEvent];
+            return [...prev, row];
           });
         }
       )
@@ -99,14 +87,13 @@ export default function Home() {
   }, []);
 
   // =========================
-  // RISK ENGINE
+  // RISK SCORE
   // =========================
   const riskScore = useMemo(() => {
     return calculateRisk(events, industry);
   }, [events, industry]);
 
-  const latestEvent =
-    events.length > 0 ? events[events.length - 1] : null;
+  const latestEvent = events.at(-1);
 
   const raw = latestEvent
     ? explainThreat(latestEvent.type)
@@ -125,7 +112,7 @@ export default function Home() {
   };
 
   // =========================
-  // ADD EVENT (FIXED)
+  // ADD EVENT (CLEAN)
   // =========================
   async function addEvent(type: RiskEvent["type"]) {
     console.log("CLICK:", type);
@@ -143,16 +130,11 @@ export default function Home() {
 
     if (error) {
       console.error("INSERT ERROR:", error);
-      return;
     }
-
-    console.log("INSERT SUCCESS");
-
-    // optional safety reload (keeps UI consistent)
   }
 
   // =========================
-  // UI STATUS
+  // UI COLORS
   // =========================
   const riskColor =
     riskScore > 80
