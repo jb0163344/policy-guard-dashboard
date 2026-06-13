@@ -49,12 +49,15 @@ export default function MissionControl({
       <hr />
 
       <button
-        style={buttonStyle}
-        onClick={() => {
-          console.log("CLICK LOGIN FAILURE");
-          addEvent("LOGIN_FAILURE");
-        }}
-      >
+  style={{ padding: 10, background: "red", color: "white" }}
+  onClick={() => {
+    alert("LOGIN BUTTON CLICKED");
+    console.log("LOGIN BUTTON CLICKED");
+    addEvent("LOGIN_FAILURE");
+  }}
+>
+  Login Failure
+</button>
         Login Failure
       </button>
 
