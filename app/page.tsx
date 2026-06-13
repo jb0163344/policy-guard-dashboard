@@ -89,10 +89,7 @@ export default function Home() {
   // =========================
   // RISK SCORE
   // =========================
-  const riskScore = useMemo(() => {
-    return calculateRisk(events, industry);
-  }, [events, industry]);
-
+  const riskScore = 0;
   const latestEvent = events.at(-1);
 
   const raw = latestEvent
