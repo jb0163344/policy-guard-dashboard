@@ -109,24 +109,32 @@ export default function Home() {
   // ADD EVENT (CLEAN)
   // =========================
   async function addEvent(type: RiskEvent["type"]) {
-    console.log("CLICK:", type);
+  const newEvent = {
+    type,
+    timestamp: createTimestamp(),
+  };
 
-    const payload = {
-      type,
-      timestamp: createTimestamp(),
-      risk_score: calculateRisk(events, industry),
-      industry,
-    };
+  console.log("ADDING EVENT:", newEvent);
 
-    const { error } = await supabase
-      .from("risk_events")
-      .insert([payload]);
+  setEvents((prev) => [...prev, newEvent]);
 
-    if (error) {
-      console.error("INSERT ERROR:", error);
-    }
+  const { error } = await supabase
+    .from("risk_events")
+    .insert([
+      {
+        type,
+        timestamp: newEvent.timestamp,
+        risk_score: 0,
+        industry,
+      },
+    ]);
+
+  if (error) {
+    console.error("INSERT ERROR:", error);
+  } else {
+    console.log("INSERT SUCCESS");
   }
-
+}
   // =========================
   // UI COLORS
   // =========================
