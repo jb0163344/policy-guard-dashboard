@@ -64,6 +64,9 @@ export function calculateRisk(
   events: RiskEvent[],
   industry: IndustryType
 ): number {
+  console.log("RISK EVENTS:", events);
+  console.log("RISK COUNT:", events.length);
+
   const weights = industryWeights[industry];
 
   let score = 0;
@@ -71,6 +74,8 @@ export function calculateRisk(
   for (const event of events) {
     score += weights[event.type];
   }
+
+  console.log("RISK SCORE:", score);
 
   return Math.min(score, 100);
 }
