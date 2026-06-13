@@ -32,10 +32,7 @@ export default function Home() {
   // =========================
   // LOAD EVENTS (SOURCE OF TRUTH)
   // =========================
-  useEffect(() => {
-    loadEvents();
-  }, []);
-
+  
   async function loadEvents() {
     const { data, error } = await supabase
       .from("risk_events")
