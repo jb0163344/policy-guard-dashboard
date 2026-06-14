@@ -130,7 +130,10 @@ const riskScore = useMemo(() => {
       {
         type,
         timestamp: newEvent.timestamp,
-        risk_score: 0,
+        risk_score: calculateRisk(
+  [...events, newEvent],
+  industry
+),
         industry,
       },
     ]);
