@@ -55,7 +55,6 @@ export default function MissionControl({
           color: "white",
         }}
         onClick={() => {
-          alert("LOGIN BUTTON CLICKED");
           console.log("LOGIN BUTTON CLICKED");
           addEvent("LOGIN_FAILURE");
         }}
