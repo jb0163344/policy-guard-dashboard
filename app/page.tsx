@@ -47,9 +47,9 @@ export default function Home() {
   setEvents((data || []) as RiskEvent[]);
 }
 
-useEffect(() => {
-  loadEvents();
-}, []);
+// useEffect(() => {
+//   loadEvents();
+// }, []);
 
   // =========================
   // REALTIME (SAFE, NO DUPLICATES)
