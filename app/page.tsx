@@ -34,18 +34,22 @@ export default function Home() {
   // =========================
   
   async function loadEvents() {
-    const { data, error } = await supabase
-      .from("risk_events")
-      .select("type, timestamp")
-      .order("timestamp", { ascending: true });
+  const { data, error } = await supabase
+    .from("risk_events")
+    .select("type, timestamp")
+    .order("timestamp", { ascending: true });
 
-    if (error) {
-      console.error("LOAD ERROR:", error);
-      return;
-    }
-
-    setEvents((data || []) as RiskEvent[]);
+  if (error) {
+    console.error("LOAD ERROR:", error);
+    return;
   }
+
+  setEvents((data || []) as RiskEvent[]);
+}
+
+useEffect(() => {
+  loadEvents();
+}, []);
 
   // =========================
   // REALTIME (SAFE, NO DUPLICATES)
@@ -84,9 +88,11 @@ export default function Home() {
   }, []);
 
   // =========================
-  // RISK SCORE
-  // =========================
-  const riskScore = 0;
+// RISK SCORE
+// =========================
+const riskScore = useMemo(() => {
+  return calculateRisk(events, industry);
+}, [events, industry]);
   const latestEvent = events.at(-1);
 
   const raw = latestEvent
