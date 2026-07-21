@@ -246,7 +246,7 @@ const channel = supabase
       event: "INSERT",
       schema: "public",
       table: "risk_events",
-      filter: `organization_id=eq.${organizationId}`,
+      filter: "organization_id=eq." + organizationId,
     },
     (payload) => {
       const row =
