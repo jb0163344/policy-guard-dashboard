@@ -239,9 +239,7 @@ return;
 
 ```
 const channel = supabase
-  .channel(
-    `risk-events-live-${organizationId}`
-  )
+  .channel("risk-events-live-" + organizationId)
   .on(
     "postgres_changes",
     {
