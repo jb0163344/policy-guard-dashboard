@@ -20,11 +20,6 @@ import ThreatMap from "../components/ThreatMap";
 
 type ViewMode = "TIMELINE" | "MAP";
 
-type Membership = {
-organization_id: string;
-role: string;
-};
-
 export default function Home() {
 const [industry, setIndustry] =
 useState<IndustryType>("ENTERPRISE");
@@ -38,14 +33,8 @@ useState<RiskEvent[]>([]);
 const [userEmail, setUserEmail] =
 useState<string | null>(null);
 
-const [organizationId, setOrganizationId] =
-useState<string | null>(null);
-
 const [loading, setLoading] =
 useState(true);
-
-const [organizationError, setOrganizationError] =
-useState<string | null>(null);
 
 const [email, setEmail] =
 useState("");
@@ -65,322 +54,16 @@ useState<string | null>(null);
 const [authMessage, setAuthMessage] =
 useState<string | null>(null);
 
-const [sessionReady, setSessionReady] =
+const [authInitialized, setAuthInitialized] =
 useState(false);
 
-// =========================
-// AUTH SESSION
-// =========================
-
-useEffect(() => {
-let mounted = true;
-
-```
-async function initializeSession() {
-  const {
-    data,
-    error,
-  } = await supabase.auth.getSession();
-
-  if (!mounted) {
-    return;
-  }
-
-  if (error) {
-    console.error(
-      "SESSION ERROR:",
-      error
-    );
-
-    setUserEmail(null);
-  } else if (data.session?.user) {
-    setUserEmail(
-      data.session.user.email ?? null
-    );
-  }
-
-  setSessionReady(true);
-}
-
-initializeSession();
-
-const {
-  data: authListener,
-} = supabase.auth.onAuthStateChange(
-  (_event, session) => {
-    if (!mounted) {
-      return;
-    }
-
-    if (session?.user) {
-      setUserEmail(
-        session.user.email ?? null
-      );
-    } else {
-      setUserEmail(null);
-      setOrganizationId(null);
-      setEvents([]);
-    }
-  }
-);
-
-return () => {
-  mounted = false;
-  authListener.subscription.unsubscribe();
-};
-```
-
-}, []);
-
-// =========================
-// LOGIN / SIGN UP
-// =========================
-
-async function handleAuth() {
-setAuthLoading(true);
-setAuthError(null);
-setAuthMessage(null);
-
-```
-if (!email.trim()) {
-  setAuthError(
-    "Please enter your email."
-  );
-
-  setAuthLoading(false);
-  return;
-}
-
-if (password.length < 6) {
-  setAuthError(
-    "Password must contain at least 6 characters."
-  );
-
-  setAuthLoading(false);
-  return;
-}
-
-if (authMode === "LOGIN") {
-  const {
-    data,
-    error,
-  } = await supabase.auth.signInWithPassword({
-    email: email.trim(),
-    password,
-  });
-
-  if (error) {
-    console.error(
-      "LOGIN ERROR:",
-      error
-    );
-
-    setAuthError(
-      error.message
-    );
-
-    setAuthLoading(false);
-    return;
-  }
-
-  if (data.user) {
-    setUserEmail(
-      data.user.email ?? null
-    );
-  }
-}
-
-if (authMode === "SIGNUP") {
-  const {
-    data,
-    error,
-  } = await supabase.auth.signUp({
-    email: email.trim(),
-    password,
-  });
-
-  if (error) {
-    console.error(
-      "SIGN UP ERROR:",
-      error
-    );
-
-    setAuthError(
-      error.message
-    );
-
-    setAuthLoading(false);
-    return;
-  }
-
-  if (data.session?.user) {
-    setUserEmail(
-      data.session.user.email ?? null
-    );
-  } else {
-    setAuthMessage(
-      "Account created. Please check your email to confirm your account before signing in."
-    );
-  }
-}
-
-setAuthLoading(false);
-```
-
-}
-
-// =========================
-// SIGN OUT
-// =========================
-
-async function handleSignOut() {
-const {
-error,
-} = await supabase.auth.signOut();
-
-```
-if (error) {
-  console.error(
-    "SIGN OUT ERROR:",
-    error
-  );
-}
-
-setUserEmail(null);
-setOrganizationId(null);
-setEvents([]);
-setOrganizationError(null);
-```
-
-}
-
-// =========================
-// ORGANIZATION
-// =========================
-
-async function initializeOrganization() {
-setOrganizationError(null);
-
-```
-const {
-  data: {
-    user,
-  },
-  error: userError,
-} = await supabase.auth.getUser();
-
-if (userError || !user) {
-  console.error(
-    "AUTHENTICATED USER ERROR:",
-    userError
-  );
-
-  setOrganizationError(
-    "Unable to verify your authenticated session."
-  );
-
-  setLoading(false);
-  return;
-}
-
-setUserEmail(
-  user.email ?? null
-);
-
-const {
-  data: membership,
-  error: membershipError,
-} = await supabase
-  .from("organization_members")
-  .select(
-    "organization_id, role"
-  )
-  .eq(
-    "user_id",
-    user.id
-  )
-  .limit(1)
-  .maybeSingle();
-
-if (membershipError) {
-  console.error(
-    "MEMBERSHIP ERROR:",
-    membershipError
-  );
-
-  setOrganizationError(
-    "Unable to determine your organization membership."
-  );
-
-  setLoading(false);
-  return;
-}
-
-if (membership) {
-  const existingMembership =
-    membership as Membership;
-
-  setOrganizationId(
-    existingMembership.organization_id
-  );
-
-  setLoading(false);
-  return;
-}
-
-setOrganizationError(
-  "Your account is authenticated, but no organization membership was found yet."
-);
-
-setLoading(false);
-```
-
-}
-
-// =========================
-// INITIALIZE AFTER SESSION
-// =========================
-
-useEffect(() => {
-if (!sessionReady) {
-return;
-}
-
-```
-if (!userEmail) {
-  setLoading(false);
-  return;
-}
-
-setLoading(true);
-
-initializeOrganization();
-```
-
-}, [
-sessionReady,
-userEmail,
-]);
-
-// =========================
-// LOAD ORGANIZATION EVENTS
-// =========================
-
-async function loadEvents(
-currentOrganizationId: string
-) {
+async function loadEvents() {
 const {
 data,
 error,
 } = await supabase
 .from("risk_events")
-.select(
-"type, timestamp"
-)
-.eq(
-"organization_id",
-currentOrganizationId
-)
+.select("type, timestamp")
 .order(
 "timestamp",
 {
@@ -406,26 +89,81 @@ setEvents(
 }
 
 useEffect(() => {
-if (!organizationId) {
+let mounted = true;
+
+```
+async function initializeAuth() {
+  const {
+    data,
+    error,
+  } = await supabase.auth.getSession();
+
+  if (!mounted) {
+    return;
+  }
+
+  if (error) {
+    console.error(
+      "SESSION ERROR:",
+      error
+    );
+
+    setUserEmail(null);
+  } else if (data.session?.user) {
+    setUserEmail(
+      data.session.user.email ?? null
+    );
+  }
+
+  setAuthInitialized(true);
+  setLoading(false);
+}
+
+initializeAuth();
+
+const {
+  data: authListener,
+} = supabase.auth.onAuthStateChange(
+  (_event, session) => {
+    if (!mounted) {
+      return;
+    }
+
+    if (session?.user) {
+      setUserEmail(
+        session.user.email ?? null
+      );
+    } else {
+      setUserEmail(null);
+      setEvents([]);
+    }
+  }
+);
+
+return () => {
+  mounted = false;
+
+  authListener.subscription.unsubscribe();
+};
+```
+
+}, []);
+
+useEffect(() => {
+if (!userEmail) {
 return;
 }
 
 ```
-loadEvents(
-  organizationId
-);
+loadEvents();
 ```
 
 }, [
-organizationId,
+userEmail,
 ]);
 
-// =========================
-// REALTIME EVENTS
-// =========================
-
 useEffect(() => {
-if (!organizationId) {
+if (!userEmail) {
 return;
 }
 
@@ -433,8 +171,7 @@ return;
 const channel =
   supabase
     .channel(
-      "risk-events-live-" +
-        organizationId
+      "risk-events-live"
     )
     .on(
       "postgres_changes",
@@ -442,9 +179,6 @@ const channel =
         event: "INSERT",
         schema: "public",
         table: "risk_events",
-        filter:
-          "organization_id=eq." +
-          organizationId,
       },
       (payload) => {
         const row =
@@ -483,12 +217,186 @@ return () => {
 ```
 
 }, [
-organizationId,
+userEmail,
 ]);
 
-// =========================
-// RISK ENGINE
-// =========================
+async function handleAuth() {
+setAuthLoading(true);
+setAuthError(null);
+setAuthMessage(null);
+
+```
+const cleanEmail =
+  email.trim();
+
+if (!cleanEmail) {
+  setAuthError(
+    "Please enter your email."
+  );
+
+  setAuthLoading(false);
+  return;
+}
+
+if (password.length < 6) {
+  setAuthError(
+    "Password must contain at least 6 characters."
+  );
+
+  setAuthLoading(false);
+  return;
+}
+
+if (authMode === "LOGIN") {
+  const {
+    data,
+    error,
+  } =
+    await supabase.auth.signInWithPassword(
+      {
+        email:
+          cleanEmail,
+        password,
+      }
+    );
+
+  if (error) {
+    console.error(
+      "LOGIN ERROR:",
+      error
+    );
+
+    setAuthError(
+      error.message
+    );
+
+    setAuthLoading(false);
+    return;
+  }
+
+  if (data.user) {
+    setUserEmail(
+      data.user.email ?? null
+    );
+  }
+} else {
+  const {
+    data,
+    error,
+  } =
+    await supabase.auth.signUp(
+      {
+        email:
+          cleanEmail,
+        password,
+      }
+    );
+
+  if (error) {
+    console.error(
+      "SIGN UP ERROR:",
+      error
+    );
+
+    setAuthError(
+      error.message
+    );
+
+    setAuthLoading(false);
+    return;
+  }
+
+  if (data.session?.user) {
+    setUserEmail(
+      data.session.user.email ?? null
+    );
+  } else {
+    setAuthMessage(
+      "Account created. Please check your email to confirm your account."
+    );
+  }
+}
+
+setAuthLoading(false);
+```
+
+}
+
+async function handleSignOut() {
+const {
+error,
+} =
+await supabase.auth.signOut();
+
+```
+if (error) {
+  console.error(
+    "SIGN OUT ERROR:",
+    error
+  );
+}
+
+setUserEmail(null);
+setEvents([]);
+```
+
+}
+
+async function addEvent(
+type: RiskEvent["type"]
+) {
+const newEvent = {
+type,
+timestamp:
+createTimestamp(),
+};
+
+```
+const updatedEvents = [
+  ...events,
+  newEvent,
+];
+
+setEvents(
+  updatedEvents
+);
+
+const {
+  error,
+} =
+  await supabase
+    .from("risk_events")
+    .insert({
+      type,
+      timestamp:
+        newEvent.timestamp,
+      risk_score:
+        calculateRisk(
+          updatedEvents,
+          industry
+        ),
+      industry,
+    });
+
+if (error) {
+  console.error(
+    "INSERT EVENT ERROR:",
+    error
+  );
+
+  setEvents(
+    events
+  );
+
+  return;
+}
+
+console.log(
+  "RISK EVENT INSERT SUCCESS"
+);
+```
+
+}
 
 const riskScore =
 useMemo(() => {
@@ -534,83 +442,6 @@ explanation:
 rawAnalysis.explanation,
 };
 
-// =========================
-// ADD EVENT
-// =========================
-
-async function addEvent(
-type: RiskEvent["type"]
-) {
-if (!organizationId) {
-setOrganizationError(
-"No organization is currently active."
-);
-
-```
-  return;
-}
-
-const newEvent = {
-  type,
-  timestamp:
-    createTimestamp(),
-};
-
-const updatedEvents = [
-  ...events,
-  newEvent,
-];
-
-setEvents(
-  updatedEvents
-);
-
-const {
-  error,
-} = await supabase
-  .from("risk_events")
-  .insert({
-    organization_id:
-      organizationId,
-
-    type,
-
-    timestamp:
-      newEvent.timestamp,
-
-    risk_score:
-      calculateRisk(
-        updatedEvents,
-        industry
-      ),
-
-    industry,
-  });
-
-if (error) {
-  console.error(
-    "INSERT EVENT ERROR:",
-    error
-  );
-
-  setEvents(
-    events
-  );
-
-  return;
-}
-
-console.log(
-  "RISK EVENT INSERTED SUCCESSFULLY"
-);
-```
-
-}
-
-// =========================
-// UI
-// =========================
-
 const riskColor =
 riskScore > 80
 ? "#ff3b3b"
@@ -629,67 +460,74 @@ riskScore > 80
 ? "MEDIUM"
 : "LOW";
 
-// =========================
-// SESSION LOADING
-// =========================
-
-if (!sessionReady) {
+if (!authInitialized) {
 return (
 <main
 style={{
-minHeight: "100vh",
+minHeight:
+"100vh",
 background:
 "radial-gradient(circle at center, #111827 0%, #05070d 70%)",
-color: "white",
-display: "flex",
-alignItems: "center",
-justifyContent: "center",
+color:
+"white",
+display:
+"flex",
+alignItems:
+"center",
+justifyContent:
+"center",
 }}
 > <h1>
 Initializing Aegivon... </h1> </main>
 );
 }
 
-// =========================
-// LOGIN
-// =========================
-
 if (!userEmail) {
 return (
 <main
 style={{
-minHeight: "100vh",
+minHeight:
+"100vh",
 background:
 "radial-gradient(circle at center, #111827 0%, #05070d 70%)",
-color: "white",
-display: "flex",
-alignItems: "center",
-justifyContent: "center",
-padding: 24,
+color:
+"white",
+display:
+"flex",
+alignItems:
+"center",
+justifyContent:
+"center",
+padding:
+24,
 }}
 >
 <section
 style={{
-width: "100%",
-maxWidth: 420,
-padding: 32,
+width:
+"100%",
+maxWidth:
+420,
+padding:
+32,
 background:
 "rgba(17,24,39,.9)",
 border:
 "1px solid rgba(255,255,255,.1)",
-borderRadius: 16,
+borderRadius:
+16,
 }}
 > <h1>
 AEGIVON </h1>
 
 ```
       <p>
-        Secure Intelligence
-        Environment
+        Secure Intelligence Environment
       </p>
 
       <h2>
-        {authMode === "LOGIN"
+        {authMode ===
+        "LOGIN"
           ? "Sign In"
           : "Create Account"}
       </h2>
@@ -697,16 +535,23 @@ AEGIVON </h1>
       <input
         type="email"
         placeholder="Email"
-        value={email}
-        onChange={(event) =>
+        value={
+          email
+        }
+        onChange={(
+          event
+        ) =>
           setEmail(
             event.target.value
           )
         }
         style={{
-          width: "100%",
-          padding: 12,
-          marginBottom: 12,
+          width:
+            "100%",
+          padding:
+            12,
+          marginBottom:
+            12,
           boxSizing:
             "border-box",
         }}
@@ -715,16 +560,23 @@ AEGIVON </h1>
       <input
         type="password"
         placeholder="Password"
-        value={password}
-        onChange={(event) =>
+        value={
+          password
+        }
+        onChange={(
+          event
+        ) =>
           setPassword(
             event.target.value
           )
         }
         style={{
-          width: "100%",
-          padding: 12,
-          marginBottom: 12,
+          width:
+            "100%",
+          padding:
+            12,
+          marginBottom:
+            12,
           boxSizing:
             "border-box",
         }}
@@ -760,14 +612,18 @@ AEGIVON </h1>
           authLoading
         }
         style={{
-          width: "100%",
-          padding: 12,
-          marginBottom: 12,
+          width:
+            "100%",
+          padding:
+            12,
+          marginBottom:
+            12,
         }}
       >
         {authLoading
           ? "Processing..."
-          : authMode === "LOGIN"
+          : authMode ===
+            "LOGIN"
           ? "Sign In"
           : "Create Account"}
       </button>
@@ -775,20 +631,29 @@ AEGIVON </h1>
       <button
         onClick={() => {
           setAuthMode(
-            authMode === "LOGIN"
+            authMode ===
+              "LOGIN"
               ? "SIGNUP"
               : "LOGIN"
           );
 
-          setAuthError(null);
-          setAuthMessage(null);
+          setAuthError(
+            null
+          );
+
+          setAuthMessage(
+            null
+          );
         }}
         style={{
-          width: "100%",
-          padding: 12,
+          width:
+            "100%",
+          padding:
+            12,
         }}
       >
-        {authMode === "LOGIN"
+        {authMode ===
+        "LOGIN"
           ? "Create a new account"
           : "Return to sign in"}
       </button>
@@ -799,119 +664,57 @@ AEGIVON </h1>
 
 }
 
-// =========================
-// ORGANIZATION LOADING
-// =========================
-
 if (loading) {
 return (
 <main
 style={{
-minHeight: "100vh",
+minHeight:
+"100vh",
 background:
 "radial-gradient(circle at center, #111827 0%, #05070d 70%)",
-color: "white",
-display: "flex",
-alignItems: "center",
-justifyContent: "center",
-flexDirection:
-"column",
-gap: 12,
+color:
+"white",
+display:
+"flex",
+alignItems:
+"center",
+justifyContent:
+"center",
 }}
 > <h1>
-AEGIVON </h1>
-
-```
-    <p>
-      Initializing secure organization environment...
-    </p>
-  </main>
+Loading Aegivon... </h1> </main>
 );
-```
-
 }
-
-// =========================
-// ORGANIZATION ERROR
-// =========================
-
-if (
-organizationError ||
-!organizationId
-) {
-return (
-<main
-style={{
-minHeight: "100vh",
-background:
-"radial-gradient(circle at center, #111827 0%, #05070d 70%)",
-color: "white",
-display: "flex",
-alignItems: "center",
-justifyContent: "center",
-flexDirection:
-"column",
-gap: 12,
-padding: 24,
-}}
-> <h1>
-AEGIVON </h1>
-
-```
-    <p>
-      {organizationError ||
-        "Organization initialization failed."}
-    </p>
-
-    <button
-      onClick={() => {
-        setLoading(true);
-        initializeOrganization();
-      }}
-    >
-      Retry
-    </button>
-
-    <button
-      onClick={
-        handleSignOut
-      }
-    >
-      Sign Out
-    </button>
-  </main>
-);
-```
-
-}
-
-// =========================
-// DASHBOARD
-// =========================
 
 return (
 <main
 style={{
-height: "100vh",
+height:
+"100vh",
 background:
 "radial-gradient(circle at center, #111827 0%, #05070d 70%)",
-color: "white",
-display: "grid",
+color:
+"white",
+display:
+"grid",
 gridTemplateColumns:
 "260px 1fr 340px",
-overflow: "hidden",
+overflow:
+"hidden",
 }}
 >
 <aside
 style={{
-padding: 24,
+padding:
+24,
 borderRight:
 "1px solid rgba(255,255,255,.08)",
 }}
 >
 <div
 style={{
-marginBottom: 20,
+marginBottom:
+20,
 }}
 > <small>
 AUTHENTICATED </small>
@@ -926,7 +729,8 @@ AUTHENTICATED </small>
           handleSignOut
         }
         style={{
-          marginTop: 10,
+          marginTop:
+            10,
         }}
       >
         Sign Out
@@ -948,15 +752,20 @@ AUTHENTICATED </small>
 
   <section
     style={{
-      padding: 24,
-      overflowY: "auto",
+      padding:
+        24,
+      overflowY:
+        "auto",
     }}
   >
     <div
       style={{
-        display: "flex",
-        gap: 10,
-        marginBottom: 20,
+        display:
+          "flex",
+        gap:
+          10,
+        marginBottom:
+          20,
       }}
     >
       <button
@@ -971,7 +780,9 @@ AUTHENTICATED </small>
 
       <button
         onClick={() =>
-          setView("MAP")
+          setView(
+            "MAP"
+          )
         }
       >
         Map
@@ -996,7 +807,8 @@ AUTHENTICATED </small>
 
   <aside
     style={{
-      padding: 24,
+      padding:
+        24,
     }}
   >
     <h2>
@@ -1013,8 +825,10 @@ AUTHENTICATED </small>
       style={{
         color:
           riskColor,
-        fontSize: 24,
-        marginTop: 10,
+        fontSize:
+          24,
+        marginTop:
+          10,
       }}
     >
       {status}
