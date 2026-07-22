@@ -714,7 +714,6 @@ AEGIVON </h1>
 
 So it should become:
 
-```tsx
       <p>
         Secure Intelligence
         Environment
