@@ -553,20 +553,10 @@ explanation:
 };
 
 const analysis = {
-severity:
-raw.severity,
-
-```
-impact:
-  String(raw.impact),
-
-confidence:
-  raw.confidence,
-
-explanation:
-  raw.explanation,
-```
-
+  severity: raw.severity,
+  impact: String(raw.impact),
+  confidence: raw.confidence,
+  explanation: raw.explanation,
 };
 
 // =========================
