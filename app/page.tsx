@@ -719,7 +719,7 @@ marginBottom:
 > <small>
 AUTHENTICATED </small>
 
-```
+```tsx
       <div>
         {userEmail}
       </div>
