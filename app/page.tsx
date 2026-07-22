@@ -20,7 +20,7 @@ import ThreatMap from "../components/ThreatMap";
 
 type ViewMode = "TIMELINE" | "MAP";
 
-type OrganizationMembership = {
+type Membership = {
 organization_id: string;
 role: string;
 };
@@ -35,19 +35,16 @@ useState<ViewMode>("TIMELINE");
 const [events, setEvents] =
 useState<RiskEvent[]>([]);
 
+const [userEmail, setUserEmail] =
+useState<string | null>(null);
+
 const [organizationId, setOrganizationId] =
 useState<string | null>(null);
 
-const [loadingOrganization, setLoadingOrganization] =
+const [loading, setLoading] =
 useState(true);
 
 const [organizationError, setOrganizationError] =
-useState<string | null>(null);
-
-const [sessionChecked, setSessionChecked] =
-useState(false);
-
-const [userEmail, setUserEmail] =
 useState<string | null>(null);
 
 const [email, setEmail] =
@@ -68,40 +65,53 @@ useState<string | null>(null);
 const [authMessage, setAuthMessage] =
 useState<string | null>(null);
 
+const [sessionReady, setSessionReady] =
+useState(false);
+
 // =========================
-// CHECK AUTH SESSION
+// AUTH SESSION
 // =========================
 
 useEffect(() => {
-async function checkSession() {
-const {
-data: { session },
-error,
-} = await supabase.auth.getSession();
+let mounted = true;
 
 ```
+async function initializeSession() {
+  const {
+    data,
+    error,
+  } = await supabase.auth.getSession();
+
+  if (!mounted) {
+    return;
+  }
+
   if (error) {
     console.error(
-      "SESSION CHECK ERROR:",
+      "SESSION ERROR:",
       error
     );
 
     setUserEmail(null);
-  } else if (session?.user) {
+  } else if (data.session?.user) {
     setUserEmail(
-      session.user.email ?? null
+      data.session.user.email ?? null
     );
   }
 
-  setSessionChecked(true);
+  setSessionReady(true);
 }
 
-checkSession();
+initializeSession();
 
 const {
-  data: { subscription },
+  data: authListener,
 } = supabase.auth.onAuthStateChange(
   (_event, session) => {
+    if (!mounted) {
+      return;
+    }
+
     if (session?.user) {
       setUserEmail(
         session.user.email ?? null
@@ -115,9 +125,11 @@ const {
 );
 
 return () => {
-  subscription.unsubscribe();
+  mounted = false;
+  authListener.subscription.unsubscribe();
 };
-  
+```
+
 }, []);
 
 // =========================
@@ -130,9 +142,18 @@ setAuthError(null);
 setAuthMessage(null);
 
 ```
-if (!email || !password) {
+if (!email.trim()) {
   setAuthError(
-    "Please enter your email and password."
+    "Please enter your email."
+  );
+
+  setAuthLoading(false);
+  return;
+}
+
+if (password.length < 6) {
+  setAuthError(
+    "Password must contain at least 6 characters."
   );
 
   setAuthLoading(false);
@@ -144,7 +165,7 @@ if (authMode === "LOGIN") {
     data,
     error,
   } = await supabase.auth.signInWithPassword({
-    email,
+    email: email.trim(),
     password,
   });
 
@@ -167,12 +188,14 @@ if (authMode === "LOGIN") {
       data.user.email ?? null
     );
   }
-} else {
+}
+
+if (authMode === "SIGNUP") {
   const {
     data,
     error,
   } = await supabase.auth.signUp({
-    email,
+    email: email.trim(),
     password,
   });
 
@@ -190,13 +213,13 @@ if (authMode === "LOGIN") {
     return;
   }
 
-  if (data.session) {
+  if (data.session?.user) {
     setUserEmail(
-      data.user?.email ?? null
+      data.session.user.email ?? null
     );
   } else {
     setAuthMessage(
-      "Account created. Check your email to confirm your account, then return to Aegivon and sign in."
+      "Account created. Please check your email to confirm your account before signing in."
     );
   }
 }
@@ -211,9 +234,18 @@ setAuthLoading(false);
 // =========================
 
 async function handleSignOut() {
-await supabase.auth.signOut();
+const {
+error,
+} = await supabase.auth.signOut();
 
 ```
+if (error) {
+  console.error(
+    "SIGN OUT ERROR:",
+    error
+  );
+}
+
 setUserEmail(null);
 setOrganizationId(null);
 setEvents([]);
@@ -223,22 +255,23 @@ setOrganizationError(null);
 }
 
 // =========================
-// ORGANIZATION INITIALIZATION
+// ORGANIZATION
 // =========================
 
 async function initializeOrganization() {
-setLoadingOrganization(true);
 setOrganizationError(null);
 
 ```
 const {
-  data: { user },
+  data: {
+    user,
+  },
   error: userError,
 } = await supabase.auth.getUser();
 
-if (userError) {
+if (userError || !user) {
   console.error(
-    "AUTH USER ERROR:",
+    "AUTHENTICATED USER ERROR:",
     userError
   );
 
@@ -246,16 +279,7 @@ if (userError) {
     "Unable to verify your authenticated session."
   );
 
-  setLoadingOrganization(false);
-  return;
-}
-
-if (!user) {
-  setOrganizationError(
-    "Please log in to access Aegivon."
-  );
-
-  setLoadingOrganization(false);
+  setLoading(false);
   return;
 }
 
@@ -280,7 +304,7 @@ const {
 
 if (membershipError) {
   console.error(
-    "ORGANIZATION MEMBERSHIP ERROR:",
+    "MEMBERSHIP ERROR:",
     membershipError
   );
 
@@ -288,114 +312,58 @@ if (membershipError) {
     "Unable to determine your organization membership."
   );
 
-  setLoadingOrganization(false);
+  setLoading(false);
   return;
 }
 
 if (membership) {
-  const typedMembership =
-    membership as OrganizationMembership;
-
-  console.log(
-    "ORGANIZATION FOUND:",
-    typedMembership.organization_id
-  );
-
-  console.log(
-    "ORGANIZATION ROLE:",
-    typedMembership.role
-  );
+  const existingMembership =
+    membership as Membership;
 
   setOrganizationId(
-    typedMembership.organization_id
+    existingMembership.organization_id
   );
 
-  setLoadingOrganization(false);
+  setLoading(false);
   return;
 }
 
-console.log(
-  "NO ORGANIZATION FOUND. CREATING AEGIVON ORGANIZATION."
+setOrganizationError(
+  "Your account is authenticated, but no organization membership was found yet."
 );
 
-const {
-  data: newOrganizationId,
-  error: createOrganizationError,
-} = await supabase.rpc(
-  "create_organization",
-  {
-    organization_name:
-      "Aegivon",
-  }
-);
-
-if (createOrganizationError) {
-  console.error(
-    "CREATE ORGANIZATION ERROR:",
-    createOrganizationError
-  );
-
-  setOrganizationError(
-    "Unable to create your Aegivon organization."
-  );
-
-  setLoadingOrganization(false);
-  return;
-}
-
-if (!newOrganizationId) {
-  console.error(
-    "CREATE ORGANIZATION RETURNED NO ID."
-  );
-
-  setOrganizationError(
-    "Aegivon organization was not created correctly."
-  );
-
-  setLoadingOrganization(false);
-  return;
-}
-
-console.log(
-  "AEGIVON ORGANIZATION CREATED:",
-  newOrganizationId
-);
-
-setOrganizationId(
-  newOrganizationId
-);
-
-setLoadingOrganization(false);
+setLoading(false);
 ```
 
 }
 
 // =========================
-// INITIALIZE ORGANIZATION
-// AFTER LOGIN
+// INITIALIZE AFTER SESSION
 // =========================
 
 useEffect(() => {
-if (!sessionChecked) {
+if (!sessionReady) {
 return;
 }
 
 ```
 if (!userEmail) {
-  setLoadingOrganization(false);
+  setLoading(false);
   return;
 }
+
+setLoading(true);
 
 initializeOrganization();
 ```
 
 }, [
-sessionChecked,
+sessionReady,
 userEmail,
 ]);
 
 // =========================
-// LOAD EVENTS
+// LOAD ORGANIZATION EVENTS
 // =========================
 
 async function loadEvents(
@@ -423,7 +391,7 @@ ascending: true,
 ```
 if (error) {
   console.error(
-    "LOAD ORGANIZATION EVENTS ERROR:",
+    "LOAD EVENTS ERROR:",
     error
   );
 
@@ -453,7 +421,7 @@ organizationId,
 ]);
 
 // =========================
-// REALTIME
+// REALTIME EVENTS
 // =========================
 
 useEffect(() => {
@@ -483,9 +451,9 @@ const channel =
           payload.new as RiskEvent;
 
         setEvents(
-          (prev) => {
-            const exists =
-              prev.some(
+          (previous) => {
+            const alreadyExists =
+              previous.some(
                 (event) =>
                   event.type ===
                     row.type &&
@@ -493,12 +461,12 @@ const channel =
                     row.timestamp
               );
 
-            if (exists) {
-              return prev;
+            if (alreadyExists) {
+              return previous;
             }
 
             return [
-              ...prev,
+              ...previous,
               row,
             ];
           }
@@ -519,7 +487,7 @@ organizationId,
 ]);
 
 // =========================
-// RISK SCORE
+// RISK ENGINE
 // =========================
 
 const riskScore =
@@ -538,9 +506,10 @@ events.length > 0
 ? events[
 events.length - 1
 ]
-: undefined;
+: null;
 
-const raw = latestEvent
+const rawAnalysis =
+latestEvent
 ? explainThreat(
 latestEvent.type
 )
@@ -553,10 +522,16 @@ explanation:
 };
 
 const analysis = {
-  severity: raw.severity,
-  impact: String(raw.impact),
-  confidence: raw.confidence,
-  explanation: raw.explanation,
+severity:
+rawAnalysis.severity,
+impact:
+String(
+rawAnalysis.impact
+),
+confidence:
+rawAnalysis.confidence,
+explanation:
+rawAnalysis.explanation,
 };
 
 // =========================
@@ -567,15 +542,11 @@ async function addEvent(
 type: RiskEvent["type"]
 ) {
 if (!organizationId) {
-console.error(
-"ADD EVENT FAILED: NO ORGANIZATION ID"
+setOrganizationError(
+"No organization is currently active."
 );
 
 ```
-  setOrganizationError(
-    "Your organization is not ready yet."
-  );
-
   return;
 }
 
@@ -598,46 +569,46 @@ const {
   error,
 } = await supabase
   .from("risk_events")
-  .insert([
-    {
-      organization_id:
-        organizationId,
+  .insert({
+    organization_id:
+      organizationId,
 
-      type,
+    type,
 
-      timestamp:
-        newEvent.timestamp,
+    timestamp:
+      newEvent.timestamp,
 
-      risk_score:
-        calculateRisk(
-          updatedEvents,
-          industry
-        ),
+    risk_score:
+      calculateRisk(
+        updatedEvents,
+        industry
+      ),
 
-      industry,
-    },
-  ]);
+    industry,
+  });
 
 if (error) {
   console.error(
-    "INSERT ORGANIZATION EVENT ERROR:",
+    "INSERT EVENT ERROR:",
     error
   );
 
   setEvents(
     events
   );
-} else {
-  console.log(
-    "ORGANIZATION EVENT INSERT SUCCESS"
-  );
+
+  return;
 }
+
+console.log(
+  "RISK EVENT INSERTED SUCCESSFULLY"
+);
 ```
 
 }
 
 // =========================
-// UI STATE
+// UI
 // =========================
 
 const riskColor =
@@ -659,10 +630,10 @@ riskScore > 80
 : "LOW";
 
 // =========================
-// SESSION CHECK
+// SESSION LOADING
 // =========================
 
-if (!sessionChecked) {
+if (!sessionReady) {
 return (
 <main
 style={{
@@ -680,7 +651,7 @@ Initializing Aegivon... </h1> </main>
 }
 
 // =========================
-// LOGIN SCREEN
+// LOGIN
 // =========================
 
 if (!userEmail) {
@@ -703,7 +674,7 @@ width: "100%",
 maxWidth: 420,
 padding: 32,
 background:
-"rgba(17,24,39,.85)",
+"rgba(17,24,39,.9)",
 border:
 "1px solid rgba(255,255,255,.1)",
 borderRadius: 16,
@@ -711,9 +682,7 @@ borderRadius: 16,
 > <h1>
 AEGIVON </h1>
 
-
-So it should become:
-
+```
       <p>
         Secure Intelligence
         Environment
@@ -738,6 +707,8 @@ So it should become:
           width: "100%",
           padding: 12,
           marginBottom: 12,
+          boxSizing:
+            "border-box",
         }}
       />
 
@@ -754,13 +725,16 @@ So it should become:
           width: "100%",
           padding: 12,
           marginBottom: 12,
+          boxSizing:
+            "border-box",
         }}
       />
 
       {authError && (
         <p
           style={{
-            color: "#ff6b6b",
+            color:
+              "#ff6b6b",
           }}
         >
           {authError}
@@ -770,7 +744,8 @@ So it should become:
       {authMessage && (
         <p
           style={{
-            color: "#00ff88",
+            color:
+              "#00ff88",
           }}
         >
           {authMessage}
@@ -828,9 +803,7 @@ So it should become:
 // ORGANIZATION LOADING
 // =========================
 
-if (
-loadingOrganization
-) {
+if (loading) {
 return (
 <main
 style={{
@@ -841,7 +814,8 @@ color: "white",
 display: "flex",
 alignItems: "center",
 justifyContent: "center",
-flexDirection: "column",
+flexDirection:
+"column",
 gap: 12,
 }}
 > <h1>
@@ -875,7 +849,8 @@ color: "white",
 display: "flex",
 alignItems: "center",
 justifyContent: "center",
-flexDirection: "column",
+flexDirection:
+"column",
 gap: 12,
 padding: 24,
 }}
@@ -889,9 +864,10 @@ AEGIVON </h1>
     </p>
 
     <button
-      onClick={
-        initializeOrganization
-      }
+      onClick={() => {
+        setLoading(true);
+        initializeOrganization();
+      }}
     >
       Retry
     </button>
@@ -910,7 +886,7 @@ AEGIVON </h1>
 }
 
 // =========================
-// MAIN DASHBOARD
+// DASHBOARD
 // =========================
 
 return (
