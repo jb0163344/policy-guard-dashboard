@@ -36,6 +36,9 @@ useState<string | null>(null);
 const [loading, setLoading] =
 useState(true);
 
+const [authInitialized, setAuthInitialized] =
+useState(false);
+
 const [email, setEmail] =
 useState("");
 
@@ -54,9 +57,6 @@ useState<string | null>(null);
 const [authMessage, setAuthMessage] =
 useState<string | null>(null);
 
-const [authInitialized, setAuthInitialized] =
-useState(false);
-
 async function loadEvents() {
 const {
 data,
@@ -64,12 +64,9 @@ error,
 } = await supabase
 .from("risk_events")
 .select("type, timestamp")
-.order(
-"timestamp",
-{
+.order("timestamp", {
 ascending: true,
-}
-);
+});
 
 ```
 if (error) {
@@ -77,7 +74,6 @@ if (error) {
     "LOAD EVENTS ERROR:",
     error
   );
-
   return;
 }
 
@@ -113,6 +109,8 @@ async function initializeAuth() {
     setUserEmail(
       data.session.user.email ?? null
     );
+  } else {
+    setUserEmail(null);
   }
 
   setAuthInitialized(true);
@@ -142,7 +140,6 @@ const {
 
 return () => {
   mounted = false;
-
   authListener.subscription.unsubscribe();
 };
 ```
@@ -158,9 +155,7 @@ return;
 loadEvents();
 ```
 
-}, [
-userEmail,
-]);
+}, [userEmail]);
 
 useEffect(() => {
 if (!userEmail) {
@@ -170,9 +165,7 @@ return;
 ```
 const channel =
   supabase
-    .channel(
-      "risk-events-live"
-    )
+    .channel("risk-events-live")
     .on(
       "postgres_changes",
       {
@@ -184,27 +177,24 @@ const channel =
         const row =
           payload.new as RiskEvent;
 
-        setEvents(
-          (previous) => {
-            const alreadyExists =
-              previous.some(
-                (event) =>
-                  event.type ===
-                    row.type &&
-                  event.timestamp ===
-                    row.timestamp
-              );
+        setEvents((previous) => {
+          const alreadyExists =
+            previous.some(
+              (event) =>
+                event.type === row.type &&
+                event.timestamp ===
+                  row.timestamp
+            );
 
-            if (alreadyExists) {
-              return previous;
-            }
-
-            return [
-              ...previous,
-              row,
-            ];
+          if (alreadyExists) {
+            return previous;
           }
-        );
+
+          return [
+            ...previous,
+            row,
+          ];
+        });
       }
     )
     .subscribe();
@@ -216,9 +206,7 @@ return () => {
 };
 ```
 
-}, [
-userEmail,
-]);
+}, [userEmail]);
 
 async function handleAuth() {
 setAuthLoading(true);
@@ -252,13 +240,10 @@ if (authMode === "LOGIN") {
     data,
     error,
   } =
-    await supabase.auth.signInWithPassword(
-      {
-        email:
-          cleanEmail,
-        password,
-      }
-    );
+    await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password,
+    });
 
   if (error) {
     console.error(
@@ -284,13 +269,10 @@ if (authMode === "LOGIN") {
     data,
     error,
   } =
-    await supabase.auth.signUp(
-      {
-        email:
-          cleanEmail,
-        password,
-      }
-    );
+    await supabase.auth.signUp({
+      email: cleanEmail,
+      password,
+    });
 
   if (error) {
     console.error(
@@ -384,10 +366,7 @@ if (error) {
     error
   );
 
-  setEvents(
-    events
-  );
-
+  setEvents(events);
   return;
 }
 
@@ -468,8 +447,7 @@ minHeight:
 "100vh",
 background:
 "radial-gradient(circle at center, #111827 0%, #05070d 70%)",
-color:
-"white",
+color: "white",
 display:
 "flex",
 alignItems:
@@ -490,32 +468,26 @@ minHeight:
 "100vh",
 background:
 "radial-gradient(circle at center, #111827 0%, #05070d 70%)",
-color:
-"white",
+color: "white",
 display:
 "flex",
 alignItems:
 "center",
 justifyContent:
 "center",
-padding:
-24,
+padding: 24,
 }}
 >
 <section
 style={{
-width:
-"100%",
-maxWidth:
-420,
-padding:
-32,
+width: "100%",
+maxWidth: 420,
+padding: 32,
 background:
 "rgba(17,24,39,.9)",
 border:
 "1px solid rgba(255,255,255,.1)",
-borderRadius:
-16,
+borderRadius: 16,
 }}
 > <h1>
 AEGIVON </h1>
@@ -526,8 +498,7 @@ AEGIVON </h1>
       </p>
 
       <h2>
-        {authMode ===
-        "LOGIN"
+        {authMode === "LOGIN"
           ? "Sign In"
           : "Create Account"}
       </h2>
@@ -535,23 +506,16 @@ AEGIVON </h1>
       <input
         type="email"
         placeholder="Email"
-        value={
-          email
-        }
-        onChange={(
-          event
-        ) =>
+        value={email}
+        onChange={(event) =>
           setEmail(
             event.target.value
           )
         }
         style={{
-          width:
-            "100%",
-          padding:
-            12,
-          marginBottom:
-            12,
+          width: "100%",
+          padding: 12,
+          marginBottom: 12,
           boxSizing:
             "border-box",
         }}
@@ -560,23 +524,16 @@ AEGIVON </h1>
       <input
         type="password"
         placeholder="Password"
-        value={
-          password
-        }
-        onChange={(
-          event
-        ) =>
+        value={password}
+        onChange={(event) =>
           setPassword(
             event.target.value
           )
         }
         style={{
-          width:
-            "100%",
-          padding:
-            12,
-          marginBottom:
-            12,
+          width: "100%",
+          padding: 12,
+          marginBottom: 12,
           boxSizing:
             "border-box",
         }}
@@ -612,12 +569,9 @@ AEGIVON </h1>
           authLoading
         }
         style={{
-          width:
-            "100%",
-          padding:
-            12,
-          marginBottom:
-            12,
+          width: "100%",
+          padding: 12,
+          marginBottom: 12,
         }}
       >
         {authLoading
@@ -637,19 +591,12 @@ AEGIVON </h1>
               : "LOGIN"
           );
 
-          setAuthError(
-            null
-          );
-
-          setAuthMessage(
-            null
-          );
+          setAuthError(null);
+          setAuthMessage(null);
         }}
         style={{
-          width:
-            "100%",
-          padding:
-            12,
+          width: "100%",
+          padding: 12,
         }}
       >
         {authMode ===
@@ -672,8 +619,7 @@ minHeight:
 "100vh",
 background:
 "radial-gradient(circle at center, #111827 0%, #05070d 70%)",
-color:
-"white",
+color: "white",
 display:
 "flex",
 alignItems:
@@ -689,37 +635,31 @@ Loading Aegivon... </h1> </main>
 return (
 <main
 style={{
-height:
-"100vh",
+height: "100vh",
 background:
 "radial-gradient(circle at center, #111827 0%, #05070d 70%)",
-color:
-"white",
-display:
-"grid",
+color: "white",
+display: "grid",
 gridTemplateColumns:
 "260px 1fr 340px",
-overflow:
-"hidden",
+overflow: "hidden",
 }}
 >
 <aside
 style={{
-padding:
-24,
+padding: 24,
 borderRight:
 "1px solid rgba(255,255,255,.08)",
 }}
 >
 <div
 style={{
-marginBottom:
-20,
+marginBottom: 20,
 }}
 > <small>
 AUTHENTICATED </small>
 
-```tsx
+```
       <div>
         {userEmail}
       </div>
@@ -729,8 +669,7 @@ AUTHENTICATED </small>
           handleSignOut
         }
         style={{
-          marginTop:
-            10,
+          marginTop: 10,
         }}
       >
         Sign Out
@@ -752,20 +691,15 @@ AUTHENTICATED </small>
 
   <section
     style={{
-      padding:
-        24,
-      overflowY:
-        "auto",
+      padding: 24,
+      overflowY: "auto",
     }}
   >
     <div
       style={{
-        display:
-          "flex",
-        gap:
-          10,
-        marginBottom:
-          20,
+        display: "flex",
+        gap: 10,
+        marginBottom: 20,
       }}
     >
       <button
@@ -780,9 +714,7 @@ AUTHENTICATED </small>
 
       <button
         onClick={() =>
-          setView(
-            "MAP"
-          )
+          setView("MAP")
         }
       >
         Map
@@ -792,23 +724,18 @@ AUTHENTICATED </small>
     {view ===
     "TIMELINE" ? (
       <ThreatTimeline
-        events={
-          events
-        }
+        events={events}
       />
     ) : (
       <ThreatMap
-        events={
-          events
-        }
+        events={events}
       />
     )}
   </section>
 
   <aside
     style={{
-      padding:
-        24,
+      padding: 24,
     }}
   >
     <h2>
@@ -823,12 +750,9 @@ AUTHENTICATED </small>
 
     <div
       style={{
-        color:
-          riskColor,
-        fontSize:
-          24,
-        marginTop:
-          10,
+        color: riskColor,
+        fontSize: 24,
+        marginTop: 10,
       }}
     >
       {status}
