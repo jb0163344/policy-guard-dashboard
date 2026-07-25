@@ -68,7 +68,6 @@ error,
 ascending: true,
 });
 
-```
 if (error) {
   console.error(
     "LOAD EVENTS ERROR:",
@@ -80,14 +79,12 @@ if (error) {
 setEvents(
   (data || []) as RiskEvent[]
 );
-```
 
 }
 
 useEffect(() => {
 let mounted = true;
 
-```
 async function initializeAuth() {
   const {
     data,
@@ -142,7 +139,6 @@ return () => {
   mounted = false;
   authListener.subscription.unsubscribe();
 };
-```
 
 }, []);
 
@@ -151,9 +147,7 @@ if (!userEmail) {
 return;
 }
 
-```
 loadEvents();
-```
 
 }, [userEmail]);
 
@@ -162,7 +156,6 @@ if (!userEmail) {
 return;
 }
 
-```
 const channel =
   supabase
     .channel("risk-events-live")
@@ -204,7 +197,7 @@ return () => {
     channel
   );
 };
-```
+
 
 }, [userEmail]);
 
@@ -213,7 +206,6 @@ setAuthLoading(true);
 setAuthError(null);
 setAuthMessage(null);
 
-```
 const cleanEmail =
   email.trim();
 
@@ -300,7 +292,6 @@ if (authMode === "LOGIN") {
 }
 
 setAuthLoading(false);
-```
 
 }
 
@@ -310,7 +301,6 @@ error,
 } =
 await supabase.auth.signOut();
 
-```
 if (error) {
   console.error(
     "SIGN OUT ERROR:",
@@ -320,7 +310,6 @@ if (error) {
 
 setUserEmail(null);
 setEvents([]);
-```
 
 }
 
@@ -333,7 +322,6 @@ timestamp:
 createTimestamp(),
 };
 
-```
 const updatedEvents = [
   ...events,
   newEvent,
@@ -373,7 +361,6 @@ if (error) {
 console.log(
   "RISK EVENT INSERT SUCCESS"
 );
-```
 
 }
 
@@ -492,7 +479,6 @@ borderRadius: 16,
 > <h1>
 AEGIVON </h1>
 
-```
       <p>
         Secure Intelligence Environment
       </p>
@@ -607,7 +593,6 @@ AEGIVON </h1>
     </section>
   </main>
 );
-```
 
 }
 
@@ -764,7 +749,6 @@ AUTHENTICATED </small>
     />
   </aside>
 </main>
-```
 
 );
 }
