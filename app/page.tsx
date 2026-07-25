@@ -659,7 +659,6 @@ marginBottom: 20,
 > <small>
 AUTHENTICATED </small>
 
-```
       <div>
         {userEmail}
       </div>
