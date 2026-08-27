@@ -3,15 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 
 import {
-RiskEvent,
-IndustryType,
-calculateRisk,
-explainThreat,
-createTimestamp,
+  RiskEvent,
+  IndustryType,
+  calculateRisk,
+  explainThreat,
+  createTimestamp,
 } from "../lib/riskEngine";
 
 import { supabase } from "../lib/supabaseClient";
-
 import RiskCore from "../components/RiskCore";
 import ThreatAnalyst from "../components/ThreatAnalyst";
 import ThreatTimeline from "../components/ThreatTimeline";
@@ -21,734 +20,814 @@ import ThreatMap from "../components/ThreatMap";
 type ViewMode = "TIMELINE" | "MAP";
 
 export default function Home() {
-const [industry, setIndustry] =
-useState<IndustryType>("ENTERPRISE");
+  const [industry, setIndustry] =
+    useState<IndustryType>("ENTERPRISE");
 
-const [view, setView] =
-useState<ViewMode>("TIMELINE");
+  const [view, setView] =
+    useState<ViewMode>("TIMELINE");
 
-const [events, setEvents] =
-useState<RiskEvent[]>([]);
+  const [events, setEvents] =
+    useState<RiskEvent[]>([]);
 
-const [userEmail, setUserEmail] =
-useState<string | null>(null);
+  const [userEmail, setUserEmail] =
+    useState<string | null>(null);
 
-const [loading, setLoading] =
-useState(true);
+  const [loading, setLoading] =
+    useState(true);
 
-const [authInitialized, setAuthInitialized] =
-useState(false);
+  const [authInitialized, setAuthInitialized] =
+    useState(false);
 
-const [email, setEmail] =
-useState("");
+  const [email, setEmail] =
+    useState("");
 
-const [password, setPassword] =
-useState("");
+  const [password, setPassword] =
+    useState("");
 
-const [authMode, setAuthMode] =
-useState<"LOGIN" | "SIGNUP">("LOGIN");
+  const [authMode, setAuthMode] =
+    useState<"LOGIN" | "SIGNUP">("LOGIN");
 
-const [authLoading, setAuthLoading] =
-useState(false);
+  const [authLoading, setAuthLoading] =
+    useState(false);
 
-const [authError, setAuthError] =
-useState<string | null>(null);
+  const [authError, setAuthError] =
+    useState<string | null>(null);
 
-const [authMessage, setAuthMessage] =
-useState<string | null>(null);
+  const [authMessage, setAuthMessage] =
+    useState<string | null>(null);
 
-async function loadEvents() {
-const {
-data,
-error,
-} = await supabase
-.from("risk_events")
-.select("type, timestamp")
-.order("timestamp", {
-ascending: true,
-});
+  async function loadEvents() {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-if (error) {
-  console.error(
-    "LOAD EVENTS ERROR:",
-    error
-  );
-  return;
-}
+    if (userError || !user) {
+      console.error(
+        "LOAD EVENTS AUTH ERROR:",
+        userError
+      );
 
-setEvents(
-  (data || []) as RiskEvent[]
-);
-
-}
-
-useEffect(() => {
-let mounted = true;
-
-async function initializeAuth() {
-  const {
-    data,
-    error,
-  } = await supabase.auth.getSession();
-
-  if (!mounted) {
-    return;
-  }
-
-  if (error) {
-    console.error(
-      "SESSION ERROR:",
-      error
-    );
-
-    setUserEmail(null);
-  } else if (data.session?.user) {
-    setUserEmail(
-      data.session.user.email ?? null
-    );
-  } else {
-    setUserEmail(null);
-  }
-
-  setAuthInitialized(true);
-  setLoading(false);
-}
-
-initializeAuth();
-
-const {
-  data: authListener,
-} = supabase.auth.onAuthStateChange(
-  (_event, session) => {
-    if (!mounted) {
+      setEvents([]);
       return;
     }
 
-    if (session?.user) {
-      setUserEmail(
-        session.user.email ?? null
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("risk_events")
+      .select("type, timestamp")
+      .eq("owner_id", user.id)
+      .order("timestamp", {
+        ascending: true,
+      });
+
+    if (error) {
+      console.error(
+        "LOAD EVENTS ERROR:",
+        error
       );
-    } else {
-      setUserEmail(null);
-      setEvents([]);
+      return;
     }
+
+    setEvents(
+      (data || []) as RiskEvent[]
+    );
   }
-);
 
-return () => {
-  mounted = false;
-  authListener.subscription.unsubscribe();
-};
+  useEffect(() => {
+    let mounted = true;
 
-}, []);
+    async function initializeAuth() {
+      const {
+        data,
+        error,
+      } = await supabase.auth.getSession();
 
-useEffect(() => {
-if (!userEmail) {
-return;
-}
+      if (!mounted) {
+        return;
+      }
 
-loadEvents();
+      if (error) {
+        console.error(
+          "SESSION ERROR:",
+          error
+        );
 
-}, [userEmail]);
+        setUserEmail(null);
+      } else if (data.session?.user) {
+        setUserEmail(
+          data.session.user.email ?? null
+        );
+      } else {
+        setUserEmail(null);
+      }
 
-useEffect(() => {
-if (!userEmail) {
-return;
-}
+      setAuthInitialized(true);
+      setLoading(false);
+    }
 
-const channel =
-  supabase
-    .channel("risk-events-live")
-    .on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "risk_events",
-      },
-      (payload) => {
-        const row =
-          payload.new as RiskEvent;
+    initializeAuth();
 
-        setEvents((previous) => {
-          const alreadyExists =
-            previous.some(
-              (event) =>
-                event.type === row.type &&
-                event.timestamp ===
-                  row.timestamp
+    const {
+      data: authListener,
+    } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!mounted) {
+          return;
+        }
+
+        if (session?.user) {
+          setUserEmail(
+            session.user.email ?? null
+          );
+        } else {
+          setUserEmail(null);
+          setEvents([]);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!userEmail) {
+      return;
+    }
+
+    loadEvents();
+  }, [userEmail]);
+
+  useEffect(() => {
+    if (!userEmail) {
+      return;
+    }
+
+    let mounted = true;
+
+    async function subscribeToUserEvents() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!mounted || !user) {
+        return;
+      }
+
+      const channel =
+        supabase
+          .channel(
+            `risk-events-live-${user.id}`
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "risk_events",
+              filter: `owner_id=eq.${user.id}`,
+            },
+            (payload) => {
+              const row =
+                payload.new as {
+                  type: RiskEvent["type"];
+                  timestamp: string;
+                  owner_id: string;
+                };
+
+              if (
+                row.owner_id !== user.id
+              ) {
+                return;
+              }
+
+              const newEvent: RiskEvent = {
+                type: row.type,
+                timestamp: row.timestamp,
+              };
+
+              setEvents((previous) => {
+                const alreadyExists =
+                  previous.some(
+                    (event) =>
+                      event.type ===
+                        newEvent.type &&
+                      event.timestamp ===
+                        newEvent.timestamp
+                  );
+
+                if (alreadyExists) {
+                  return previous;
+                }
+
+                return [
+                  ...previous,
+                  newEvent,
+                ];
+              });
+            }
+          )
+          .subscribe();
+
+      return channel;
+    }
+
+    let activeChannel:
+      | ReturnType<
+          typeof supabase.channel
+        >
+      | undefined;
+
+    subscribeToUserEvents().then(
+      (channel) => {
+        if (!mounted) {
+          if (channel) {
+            supabase.removeChannel(
+              channel
             );
-
-          if (alreadyExists) {
-            return previous;
           }
 
-          return [
-            ...previous,
-            row,
-          ];
-        });
+          return;
+        }
+
+        activeChannel = channel;
       }
-    )
-    .subscribe();
-
-return () => {
-  supabase.removeChannel(
-    channel
-  );
-};
-
-
-}, [userEmail]);
-
-async function handleAuth() {
-setAuthLoading(true);
-setAuthError(null);
-setAuthMessage(null);
-
-const cleanEmail =
-  email.trim();
-
-if (!cleanEmail) {
-  setAuthError(
-    "Please enter your email."
-  );
-
-  setAuthLoading(false);
-  return;
-}
-
-if (password.length < 6) {
-  setAuthError(
-    "Password must contain at least 6 characters."
-  );
-
-  setAuthLoading(false);
-  return;
-}
-
-if (authMode === "LOGIN") {
-  const {
-    data,
-    error,
-  } =
-    await supabase.auth.signInWithPassword({
-      email: cleanEmail,
-      password,
-    });
-
-  if (error) {
-    console.error(
-      "LOGIN ERROR:",
-      error
     );
 
-    setAuthError(
-      error.message
-    );
+    return () => {
+      mounted = false;
+
+      if (activeChannel) {
+        supabase.removeChannel(
+          activeChannel
+        );
+      }
+    };
+  }, [userEmail]);
+
+  async function handleAuth() {
+    setAuthLoading(true);
+    setAuthError(null);
+    setAuthMessage(null);
+
+    const cleanEmail =
+      email.trim();
+
+    if (!cleanEmail) {
+      setAuthError(
+        "Please enter your email."
+      );
+
+      setAuthLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setAuthError(
+        "Password must contain at least 6 characters."
+      );
+
+      setAuthLoading(false);
+      return;
+    }
+
+    if (authMode === "LOGIN") {
+      const {
+        data,
+        error,
+      } =
+        await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
+
+      if (error) {
+        console.error(
+          "LOGIN ERROR:",
+          error
+        );
+
+        setAuthError(
+          error.message
+        );
+
+        setAuthLoading(false);
+        return;
+      }
+
+      if (data.user) {
+        setUserEmail(
+          data.user.email ?? null
+        );
+      }
+    } else {
+      const {
+        data,
+        error,
+      } =
+        await supabase.auth.signUp({
+          email: cleanEmail,
+          password,
+        });
+
+      if (error) {
+        console.error(
+          "SIGN UP ERROR:",
+          error
+        );
+
+        setAuthError(
+          error.message
+        );
+
+        setAuthLoading(false);
+        return;
+      }
+
+      if (data.session?.user) {
+        setUserEmail(
+          data.session.user.email ?? null
+        );
+      } else {
+        setAuthMessage(
+          "Account created. Please check your email to confirm your account."
+        );
+      }
+    }
 
     setAuthLoading(false);
-    return;
   }
 
-  if (data.user) {
-    setUserEmail(
-      data.user.email ?? null
-    );
-  }
-} else {
-  const {
-    data,
-    error,
-  } =
-    await supabase.auth.signUp({
-      email: cleanEmail,
-      password,
-    });
+  async function handleSignOut() {
+    const {
+      error,
+    } =
+      await supabase.auth.signOut();
 
-  if (error) {
-    console.error(
-      "SIGN UP ERROR:",
-      error
-    );
+    if (error) {
+      console.error(
+        "SIGN OUT ERROR:",
+        error
+      );
+    }
 
-    setAuthError(
-      error.message
-    );
-
-    setAuthLoading(false);
-    return;
+    setUserEmail(null);
+    setEvents([]);
   }
 
-  if (data.session?.user) {
-    setUserEmail(
-      data.session.user.email ?? null
-    );
-  } else {
-    setAuthMessage(
-      "Account created. Please check your email to confirm your account."
-    );
-  }
-}
-
-setAuthLoading(false);
-
-}
-
-async function handleSignOut() {
-const {
-error,
-} =
-await supabase.auth.signOut();
-
-if (error) {
-  console.error(
-    "SIGN OUT ERROR:",
-    error
-  );
-}
-
-setUserEmail(null);
-setEvents([]);
-
-}
-
-async function addEvent(
-type: RiskEvent["type"]
-) {
-const newEvent = {
-type,
-timestamp:
-createTimestamp(),
-};
-
-const updatedEvents = [
-  ...events,
-  newEvent,
-];
-
-setEvents(
-  updatedEvents
-);
-
-const {
-  error,
-} =
-  await supabase
-    .from("risk_events")
-    .insert({
+  async function addEvent(
+    type: RiskEvent["type"]
+  ) {
+    const newEvent = {
       type,
       timestamp:
-        newEvent.timestamp,
-      risk_score:
-        calculateRisk(
-          updatedEvents,
-          industry
-        ),
-      industry,
-    });
+        createTimestamp(),
+    };
 
-if (error) {
-  console.error(
-    "INSERT EVENT ERROR:",
-    error
-  );
+    const updatedEvents = [
+      ...events,
+      newEvent,
+    ];
 
-  setEvents(events);
-  return;
-}
+    setEvents(
+      updatedEvents
+    );
 
-console.log(
-  "RISK EVENT INSERT SUCCESS"
-);
+    const {
+      error,
+    } =
+      await supabase
+        .from("risk_events")
+        .insert({
+          type,
+          timestamp:
+            newEvent.timestamp,
+          risk_score:
+            calculateRisk(
+              updatedEvents,
+              industry
+            ),
+          industry,
+        });
 
-}
+    if (error) {
+      console.error(
+        "INSERT EVENT ERROR:",
+        error
+      );
 
-const riskScore =
-useMemo(() => {
-return calculateRisk(
-events,
-industry
-);
-}, [
-events,
-industry,
-]);
+      setEvents(events);
+      return;
+    }
 
-const latestEvent =
-events.length > 0
-? events[
-events.length - 1
-]
-: null;
+    console.log(
+      "RISK EVENT INSERT SUCCESS"
+    );
+  }
 
-const rawAnalysis =
-latestEvent
-? explainThreat(
-latestEvent.type
-)
-: {
-severity: "LOW",
-impact: "0",
-confidence: "0%",
-explanation:
-"No events yet.",
-};
-
-const analysis = {
-severity:
-rawAnalysis.severity,
-impact:
-String(
-rawAnalysis.impact
-),
-confidence:
-rawAnalysis.confidence,
-explanation:
-rawAnalysis.explanation,
-};
-
-const riskColor =
-riskScore > 80
-? "#ff3b3b"
-: riskScore > 50
-? "#ff9d00"
-: riskScore > 20
-? "#ffe600"
-: "#00ff88";
-
-const status =
-riskScore > 80
-? "CRITICAL"
-: riskScore > 50
-? "HIGH"
-: riskScore > 20
-? "MEDIUM"
-: "LOW";
-
-if (!authInitialized) {
-return (
-<main
-style={{
-minHeight:
-"100vh",
-background:
-"radial-gradient(circle at center, #111827 0%, #05070d 70%)",
-color: "white",
-display:
-"flex",
-alignItems:
-"center",
-justifyContent:
-"center",
-}}
-> <h1>
-Initializing Aegivon... </h1> </main>
-);
-}
-
-if (!userEmail) {
-return (
-<main
-style={{
-minHeight:
-"100vh",
-background:
-"radial-gradient(circle at center, #111827 0%, #05070d 70%)",
-color: "white",
-display:
-"flex",
-alignItems:
-"center",
-justifyContent:
-"center",
-padding: 24,
-}}
->
-<section
-style={{
-width: "100%",
-maxWidth: 420,
-padding: 32,
-background:
-"rgba(17,24,39,.9)",
-border:
-"1px solid rgba(255,255,255,.1)",
-borderRadius: 16,
-}}
-> <h1>
-AEGIVON </h1>
-
-      <p>
-        Secure Intelligence Environment
-      </p>
-
-      <h2>
-        {authMode === "LOGIN"
-          ? "Sign In"
-          : "Create Account"}
-      </h2>
-
-      <input
-        type="email"
-        placeholder="Email"
-        value={email}
-        onChange={(event) =>
-          setEmail(
-            event.target.value
-          )
-        }
-        style={{
-          width: "100%",
-          padding: 12,
-          marginBottom: 12,
-          boxSizing:
-            "border-box",
-        }}
-      />
-
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(event) =>
-          setPassword(
-            event.target.value
-          )
-        }
-        style={{
-          width: "100%",
-          padding: 12,
-          marginBottom: 12,
-          boxSizing:
-            "border-box",
-        }}
-      />
-
-      {authError && (
-        <p
-          style={{
-            color:
-              "#ff6b6b",
-          }}
-        >
-          {authError}
-        </p>
-      )}
-
-      {authMessage && (
-        <p
-          style={{
-            color:
-              "#00ff88",
-          }}
-        >
-          {authMessage}
-        </p>
-      )}
-
-      <button
-        onClick={
-          handleAuth
-        }
-        disabled={
-          authLoading
-        }
-        style={{
-          width: "100%",
-          padding: 12,
-          marginBottom: 12,
-        }}
-      >
-        {authLoading
-          ? "Processing..."
-          : authMode ===
-            "LOGIN"
-          ? "Sign In"
-          : "Create Account"}
-      </button>
-
-      <button
-        onClick={() => {
-          setAuthMode(
-            authMode ===
-              "LOGIN"
-              ? "SIGNUP"
-              : "LOGIN"
-          );
-
-          setAuthError(null);
-          setAuthMessage(null);
-        }}
-        style={{
-          width: "100%",
-          padding: 12,
-        }}
-      >
-        {authMode ===
-        "LOGIN"
-          ? "Create a new account"
-          : "Return to sign in"}
-      </button>
-    </section>
-  </main>
-);
-
-}
-
-if (loading) {
-return (
-<main
-style={{
-minHeight:
-"100vh",
-background:
-"radial-gradient(circle at center, #111827 0%, #05070d 70%)",
-color: "white",
-display:
-"flex",
-alignItems:
-"center",
-justifyContent:
-"center",
-}}
-> <h1>
-Loading Aegivon... </h1> </main>
-);
-}
-
-return (
-<main
-style={{
-height: "100vh",
-background:
-"radial-gradient(circle at center, #111827 0%, #05070d 70%)",
-color: "white",
-display: "grid",
-gridTemplateColumns:
-"260px 1fr 340px",
-overflow: "hidden",
-}}
->
-<aside
-style={{
-padding: 24,
-borderRight:
-"1px solid rgba(255,255,255,.08)",
-}}
->
-<div
-style={{
-marginBottom: 20,
-}}
-> <small>
-AUTHENTICATED </small>
-
-      <div>
-        {userEmail}
-      </div>
-
-      <button
-        onClick={
-          handleSignOut
-        }
-        style={{
-          marginTop: 10,
-        }}
-      >
-        Sign Out
-      </button>
-    </div>
-
-    <MissionControl
-      addEvent={
-        addEvent
-      }
-      industry={
+  const riskScore =
+    useMemo(() => {
+      return calculateRisk(
+        events,
         industry
-      }
-      setIndustry={
-        setIndustry
-      }
-    />
-  </aside>
+      );
+    }, [
+      events,
+      industry,
+    ]);
 
-  <section
-    style={{
-      padding: 24,
-      overflowY: "auto",
-    }}
-  >
-    <div
+  const latestEvent =
+    events.length > 0
+      ? events[
+          events.length - 1
+        ]
+      : null;
+
+  const rawAnalysis =
+    latestEvent
+      ? explainThreat(
+          latestEvent.type
+        )
+      : {
+          severity: "LOW" as const,
+          impact: 0,
+          confidence: "0%",
+          explanation:
+            "No events yet.",
+        };
+
+  const analysis = {
+    severity:
+      rawAnalysis.severity,
+    impact:
+      String(
+        rawAnalysis.impact
+      ),
+    confidence:
+      rawAnalysis.confidence,
+    explanation:
+      rawAnalysis.explanation,
+  };
+
+  const riskColor =
+    riskScore > 80
+      ? "#ff3b3b"
+      : riskScore > 50
+      ? "#ff9d00"
+      : riskScore > 20
+      ? "#ffe600"
+      : "#00ff88";
+
+  const status =
+    riskScore > 80
+      ? "CRITICAL"
+      : riskScore > 50
+      ? "HIGH"
+      : riskScore > 20
+      ? "MEDIUM"
+      : "LOW";
+
+  if (!authInitialized) {
+    return (
+      <main
+        style={{
+          minHeight:
+            "100vh",
+          background:
+            "radial-gradient(circle at center, #111827 0%, #05070d 70%)",
+          color: "white",
+          display:
+            "flex",
+          alignItems:
+            "center",
+          justifyContent:
+            "center",
+        }}
+      >
+        <h1>
+          Initializing Aegivon...
+        </h1>
+      </main>
+    );
+  }
+
+  if (!userEmail) {
+    return (
+      <main
+        style={{
+          minHeight:
+            "100vh",
+          background:
+            "radial-gradient(circle at center, #111827 0%, #05070d 70%)",
+          color: "white",
+          display:
+            "flex",
+          alignItems:
+            "center",
+          justifyContent:
+            "center",
+          padding: 24,
+        }}
+      >
+        <section
+          style={{
+            width: "100%",
+            maxWidth: 420,
+            padding: 32,
+            background:
+              "rgba(17,24,39,.9)",
+            border:
+              "1px solid rgba(255,255,255,.1)",
+            borderRadius: 16,
+          }}
+        >
+          <h1>
+            AEGIVON
+          </h1>
+
+          <p>
+            Secure Intelligence Environment
+          </p>
+
+          <h2>
+            {authMode === "LOGIN"
+              ? "Sign In"
+              : "Create Account"}
+          </h2>
+
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(event) =>
+              setEmail(
+                event.target.value
+              )
+            }
+            style={{
+              width: "100%",
+              padding: 12,
+              marginBottom: 12,
+              boxSizing:
+                "border-box",
+            }}
+          />
+
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(event) =>
+              setPassword(
+                event.target.value
+              )
+            }
+            style={{
+              width: "100%",
+              padding: 12,
+              marginBottom: 12,
+              boxSizing:
+                "border-box",
+            }}
+          />
+
+          {authError && (
+            <p
+              style={{
+                color:
+                  "#ff6b6b",
+              }}
+            >
+              {authError}
+            </p>
+          )}
+
+          {authMessage && (
+            <p
+              style={{
+                color:
+                  "#00ff88",
+              }}
+            >
+              {authMessage}
+            </p>
+          )}
+
+          <button
+            onClick={
+              handleAuth
+            }
+            disabled={
+              authLoading
+            }
+            style={{
+              width: "100%",
+              padding: 12,
+              marginBottom: 12,
+            }}
+          >
+            {authLoading
+              ? "Processing..."
+              : authMode ===
+                "LOGIN"
+              ? "Sign In"
+              : "Create Account"}
+          </button>
+
+          <button
+            onClick={() => {
+              setAuthMode(
+                authMode ===
+                  "LOGIN"
+                  ? "SIGNUP"
+                  : "LOGIN"
+              );
+
+              setAuthError(
+                null
+              );
+
+              setAuthMessage(
+                null
+              );
+            }}
+            style={{
+              width: "100%",
+              padding: 12,
+            }}
+          >
+            {authMode ===
+            "LOGIN"
+              ? "Create a new account"
+              : "Return to sign in"}
+          </button>
+        </section>
+      </main>
+    );
+  }
+
+  if (loading) {
+    return (
+      <main
+        style={{
+          minHeight:
+            "100vh",
+          background:
+            "radial-gradient(circle at center, #111827 0%, #05070d 70%)",
+          color: "white",
+          display:
+            "flex",
+          alignItems:
+            "center",
+          justifyContent:
+            "center",
+        }}
+      >
+        <h1>
+          Loading Aegivon...
+        </h1>
+      </main>
+    );
+  }
+
+  return (
+    <main
       style={{
-        display: "flex",
-        gap: 10,
-        marginBottom: 20,
+        height: "100vh",
+        background:
+          "radial-gradient(circle at center, #111827 0%, #05070d 70%)",
+        color: "white",
+        display: "grid",
+        gridTemplateColumns:
+          "260px 1fr 340px",
+        overflow: "hidden",
       }}
     >
-      <button
-        onClick={() =>
-          setView(
-            "TIMELINE"
-          )
-        }
+      <aside
+        style={{
+          padding: 24,
+          borderRight:
+            "1px solid rgba(255,255,255,.08)",
+        }}
       >
-        Timeline
-      </button>
+        <div
+          style={{
+            marginBottom: 20,
+          }}
+        >
+          <small>
+            AUTHENTICATED
+          </small>
 
-      <button
-        onClick={() =>
-          setView("MAP")
-        }
+          <div>
+            {userEmail}
+          </div>
+
+          <button
+            onClick={
+              handleSignOut
+            }
+            style={{
+              marginTop: 10,
+            }}
+          >
+            Sign Out
+          </button>
+        </div>
+
+        <MissionControl
+          addEvent={
+            addEvent
+          }
+          industry={
+            industry
+          }
+          setIndustry={
+            setIndustry
+          }
+        />
+      </aside>
+
+      <section
+        style={{
+          padding: 24,
+          overflowY: "auto",
+        }}
       >
-        Map
-      </button>
-    </div>
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            marginBottom: 20,
+          }}
+        >
+          <button
+            onClick={() =>
+              setView(
+                "TIMELINE"
+              )
+            }
+          >
+            Timeline
+          </button>
 
-    {view ===
-    "TIMELINE" ? (
-      <ThreatTimeline
-        events={events}
-      />
-    ) : (
-      <ThreatMap
-        events={events}
-      />
-    )}
-  </section>
+          <button
+            onClick={() =>
+              setView("MAP")
+            }
+          >
+            Map
+          </button>
+        </div>
 
-  <aside
-    style={{
-      padding: 24,
-    }}
-  >
-    <h2>
-      RISK ENGINE
-    </h2>
+        {view ===
+        "TIMELINE" ? (
+          <ThreatTimeline
+            events={events}
+          />
+        ) : (
+          <ThreatMap
+            events={events}
+          />
+        )}
+      </section>
 
-    <RiskCore
-      riskScore={
-        riskScore
-      }
-    />
+      <aside
+        style={{
+          padding: 24,
+        }}
+      >
+        <h2>
+          RISK ENGINE
+        </h2>
 
-    <div
-      style={{
-        color: riskColor,
-        fontSize: 24,
-        marginTop: 10,
-      }}
-    >
-      {status}
-    </div>
+        <RiskCore
+          riskScore={
+            riskScore
+          }
+        />
 
-    <ThreatAnalyst
-      analysis={
-        analysis
-      }
-    />
-  </aside>
-</main>
+        <div
+          style={{
+            color: riskColor,
+            fontSize: 24,
+            marginTop: 10,
+          }}
+        >
+          {status}
+        </div>
 
-);
+        <ThreatAnalyst
+          analysis={
+            analysis
+          }
+        />
+      </aside>
+    </main>
+  );
 }
