@@ -16,6 +16,7 @@ import ThreatAnalyst from "../components/ThreatAnalyst";
 import ThreatTimeline from "../components/ThreatTimeline";
 import MissionControl from "../components/MissionControl";
 import ThreatMap from "../components/ThreatMap";
+import PaddleCheckout from "../components/PaddleCheckout";
 
 type ViewMode = "TIMELINE" | "MAP";
 
@@ -795,6 +796,104 @@ export default function Home() {
             events={events}
           />
         )}
+
+        <section
+          style={{
+            marginTop: 32,
+            padding: 24,
+            background:
+              "rgba(17,24,39,.75)",
+            border:
+              "1px solid rgba(255,255,255,.08)",
+            borderRadius: 16,
+          }}
+        >
+          <h2>
+            Aegivon Plans
+          </h2>
+
+          <p
+            style={{
+              opacity: 0.75,
+              marginBottom: 24,
+            }}
+          >
+            Upgrade your Aegivon security environment.
+          </p>
+
+          <div
+            style={{
+              display: "grid",
+              gap: 16,
+            }}
+          >
+            <div
+              style={{
+                padding: 20,
+                border:
+                  "1px solid rgba(255,255,255,.08)",
+                borderRadius: 12,
+              }}
+            >
+              <h3>
+                Aegivon Pro
+              </h3>
+
+              <p>
+                $29/month
+              </p>
+
+              <PaddleCheckout
+                planCode="AEGIVON_PRO"
+                label="Start Pro"
+              />
+            </div>
+
+            <div
+              style={{
+                padding: 20,
+                border:
+                  "1px solid rgba(255,255,255,.08)",
+                borderRadius: 12,
+              }}
+            >
+              <h3>
+                Aegivon Business
+              </h3>
+
+              <p>
+                $99/month
+              </p>
+
+              <PaddleCheckout
+                planCode="AEGIVON_BUSINESS"
+                label="Start Business"
+              />
+            </div>
+
+            <div
+              style={{
+                padding: 20,
+                border:
+                  "1px solid rgba(255,255,255,.08)",
+                borderRadius: 12,
+              }}
+            >
+              <h3>
+                Aegivon Enterprise
+              </h3>
+
+              <p>
+                Enterprise plan
+              </p>
+
+              <PaddleCheckout
+                planCode="AEGIVON_ENTERPRISE"
+                label="Start Enterprise"
+              />
+            </div>
+          </div>
+        </section>
       </section>
 
       <aside
